@@ -245,11 +245,6 @@ body[data-tod=night] .tint{background:rgba(10,10,40,.35)}
 .clock{font-size:clamp(64px,8.2vw,150px)}
 .weather{margin-top:10px}
 body:has(.remind:not(.hide)) .phrase{display:none}
-/* прозрачнее стекло, чтобы фото было лучше видно */
-.glass{background:rgba(255,255,255,.07);backdrop-filter:blur(10px) saturate(150%);-webkit-backdrop-filter:blur(10px) saturate(150%);border-color:rgba(255,255,255,.22)}
-.formp.glass,.kb.glass,.nav.glass,.bar.glass{background:rgba(30,30,40,.55);backdrop-filter:blur(24px);-webkit-backdrop-filter:blur(24px)}
-.wrap,.pane{text-shadow:0 1px 3px rgba(0,0,0,.45)}
-.hint{background:rgba(255,255,255,.07);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px)}
 #realPhotos .photo .pfg{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;object-position:center 35%}
 #realPhotos .photo .pbg{position:absolute;inset:-40px;width:calc(100% + 80px);height:calc(100% + 80px);object-fit:cover;filter:blur(40px) brightness(.7) saturate(1.2);display:none}
 #realPhotos .photo.tall .pbg{display:block}
@@ -258,25 +253,71 @@ body:has(.remind:not(.hide)) .phrase{display:none}
 #realPhotos .pcell{flex:1;position:relative;overflow:hidden}
 #realPhotos .pcell img,#realPhotos .pcell video{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;object-position:center 35%}
 #realPhotos .photo.multi .pcell img,#realPhotos .photo.multi .pcell video{object-position:center 30%}
+/* ===== главная: слева всё полезное, справа большое окно фото/видео ===== */
+.home{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.15fr);gap:clamp(16px,2vw,32px);padding:clamp(74px,6.5vw,96px) clamp(18px,2.4vw,44px) clamp(18px,2.4vw,36px);height:100vh;box-sizing:border-box}
+.info{display:flex;flex-direction:column;gap:clamp(10px,1.2vw,18px);min-height:0;overflow:auto;scrollbar-width:none}
+.toprow{display:grid;grid-template-columns:auto minmax(0,1fr);gap:clamp(14px,2vw,28px);align-items:start}
+.home .clock{font-size:clamp(56px,6.2vw,120px)}
+.home .date{font-size:clamp(15px,1.3vw,22px);margin-top:6px}
+.home .weather{margin-top:8px;font-size:clamp(14px,1.2vw,19px)}
+.home .phrase{padding:12px 16px}.home .phrase p{font-size:clamp(16px,1.3vw,20px);margin:2px 0}
+.home .ask{padding:10px 10px 10px 18px}
+.cards{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:clamp(10px,1.2vw,16px);align-content:start}
+.pslot{position:relative;overflow:hidden;border-radius:34px;min-height:0;padding:0}
+#realPhotos{position:absolute;inset:0}
+#realPhotos .photo{position:absolute;inset:0;z-index:0}
+.pempty{position:absolute;inset:0;display:grid;place-items:center;color:var(--soft);font-size:18px;text-align:center;padding:30px}
+#realPhotos:not(:empty)~.pempty{display:none}
+.tv::after{display:none}
+/* ===== фон по погоде ===== */
+.wx{position:fixed;inset:0;z-index:-3;background:linear-gradient(180deg,#34506e,#6d87a3 60%,#a9bccf);transition:background 3s,filter 3s;overflow:hidden}
+.wx::before,.wx::after{content:"";position:absolute;inset:0;pointer-events:none}
+body[data-wx=clear] .wx{background:linear-gradient(180deg,#2c78cf 0%,#64aaea 55%,#cfe6fa 100%)}
+body[data-wx=clear] .wx::after{background:radial-gradient(circle at 82% 8%,rgba(255,236,170,.75),rgba(255,220,140,.25) 18%,transparent 40%)}
+body[data-wx=cloudy] .wx{background:linear-gradient(180deg,#4e6378,#8496a9 60%,#b7c3cf)}
+body[data-wx=cloudy] .wx::after{background:radial-gradient(60% 30% at 20% 20%,rgba(255,255,255,.22),transparent 70%),radial-gradient(50% 25% at 75% 30%,rgba(255,255,255,.18),transparent 70%);animation:drift 60s linear infinite alternate}
+body[data-wx=fog] .wx{background:linear-gradient(180deg,#7a858f,#aab3ba 55%,#cfd5da)}
+body[data-wx=rain] .wx{background:linear-gradient(180deg,#26333f,#46576a 60%,#66788b)}
+body[data-wx=rain] .wx::before{background:repeating-linear-gradient(105deg,transparent 0 22px,rgba(200,220,255,.18) 22px 23px,transparent 23px 46px);background-size:300px 300px;animation:rain .6s linear infinite}
+body[data-wx=snow] .wx{background:linear-gradient(180deg,#5d7591,#9fb2c8 60%,#d6e0ea)}
+body[data-wx=snow] .wx::before{background-image:radial-gradient(3px 3px at 20px 30px,#fff,transparent),radial-gradient(2px 2px at 80px 120px,#fff,transparent),radial-gradient(4px 4px at 150px 60px,rgba(255,255,255,.9),transparent),radial-gradient(2px 2px at 200px 180px,#fff,transparent),radial-gradient(3px 3px at 260px 20px,#fff,transparent);background-size:300px 220px;animation:snow 14s linear infinite;opacity:.85}
+body[data-tod=evening] .wx{filter:saturate(1.1)}
+body[data-tod=evening] .wx::after{background:linear-gradient(180deg,rgba(255,130,70,.35),rgba(80,30,110,.45))}
+body[data-tod=night] .wx{filter:brightness(.4) saturate(.8)}
+body[data-tod=morning] .wx::after{background:linear-gradient(180deg,rgba(255,200,130,.28),transparent 55%)}
+@keyframes snow{to{background-position:60px 220px,-40px 220px,30px 220px,-20px 220px,50px 220px}}
+@keyframes rain{to{background-position:-60px 300px}}
+@keyframes drift{to{transform:translateX(8%)}}
+@media(max-width:900px){.home{grid-template-columns:minmax(0,1fr);height:auto}.pslot{height:60vh}.toprow,.cards{grid-template-columns:minmax(0,1fr)}}
+.home{grid-template-columns:minmax(0,1.05fr) minmax(0,1fr)}
+.cards{grid-template-areas:"s t" "s c" "w w";grid-template-rows:auto auto auto}
+.cards>article:nth-child(1){grid-area:s;grid-column:auto}
+.cards>article:nth-child(2){grid-area:t}
+.cards>article:nth-child(3){grid-area:c}
+.cards>article:nth-child(4){grid-area:w}
+.cards .sched li{grid-template-columns:52px minmax(0,1fr) auto;padding:6px 8px}
+.home .duo{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+.home .duo .ask{flex:1;min-width:180px}
+.home .apps{display:flex;gap:8px}
+.home .apps .app{font-size:0;gap:0}
+.home .apps .app i{width:46px;height:46px;font-size:15px}
+.home .wear-row div{padding:6px 2px}
+.home .wear-row svg{width:28px;height:28px}
+.home .wear-tip{margin-top:0}
 </style>
 </head>
 <body>
-<div class="tint"></div>
+<div class="wx" id="wx"></div>
 <div class="tv">
-  <div id="realPhotos"></div>
-  <div class="photo on" data-i="0"><svg viewBox="0 0 1600 900" preserveAspectRatio="xMidYMid slice"><defs><linearGradient id="s1" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#2b5f9e"/><stop offset=".55" stop-color="#f2a65a"/><stop offset="1" stop-color="#f7d29a"/></linearGradient></defs><rect width="1600" height="900" fill="url(#s1)"/><circle cx="1180" cy="430" r="70" fill="#fff3d6" opacity=".9"/><path d="M0 560 L220 360 L380 470 L560 250 L760 450 L940 300 L1120 480 L1300 330 L1600 520 V900 H0Z" fill="#3c4a6b"/><path d="M520 300 L560 250 L600 300 L580 295 L560 310 L540 296Z M900 340 L940 300 L980 340 L960 336 L940 350Z" fill="#fff" opacity=".85"/><path d="M0 680 Q400 590 800 660 T1600 620 V900 H0Z" fill="#26324a"/><path d="M0 780 Q500 720 1000 790 T1600 760 V900 H0Z" fill="#161e30"/></svg></div>
-  <div class="photo" data-i="1"><svg viewBox="0 0 1600 900" preserveAspectRatio="xMidYMid slice"><defs><linearGradient id="s2" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#7cc4e8"/><stop offset="1" stop-color="#d9f0f7"/></linearGradient></defs><rect width="1600" height="900" fill="url(#s2)"/><path d="M0 600 Q400 520 800 580 T1600 560 V900 H0Z" fill="#e7c28a"/><path d="M0 560 Q400 500 800 540 T1600 520 V600 H0Z" fill="#2f8fb8"/><path d="M0 700 Q500 640 1000 700 T1600 680 V900 H0Z" fill="#f0d6a6"/><circle cx="300" cy="200" r="60" fill="#fffbe8"/><g fill="#fff" opacity=".8"><ellipse cx="900" cy="180" rx="120" ry="28"/><ellipse cx="1250" cy="260" rx="90" ry="22"/></g></svg></div>
-  <div class="photo" data-i="2"><svg viewBox="0 0 1600 900" preserveAspectRatio="xMidYMid slice"><defs><linearGradient id="s3" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#3d6b4a"/><stop offset="1" stop-color="#a8c98a"/></linearGradient></defs><rect width="1600" height="900" fill="url(#s3)"/><g fill="#1f3d2a"><path d="M200 900 L300 420 L400 900Z"/><path d="M1200 900 L1320 360 L1440 900Z"/><path d="M1380 900 L1460 520 L1540 900Z"/></g><path d="M0 760 Q800 700 1600 760 V900 H0Z" fill="#6f9a52"/><g fill="#ffd56b"><circle cx="600" cy="780" r="8"/><circle cx="680" cy="800" r="6"/><circle cx="900" cy="770" r="7"/><circle cx="1000" cy="805" r="6"/></g></svg></div>
-
-  
-  <div class="wrap view on" id="v-home">
-    <section class="left">
-      <div>
+  <div class="home view on" id="v-home">
+    <section class="info">
+      <div class="toprow">
+        <div>
         <div class="clock" id="clock">--:--</div>
         <div class="date" id="date"></div>
         <div class="weather" id="weather"><span data-n="wLoading">Загружаю погоду…</span></div>
       </div>
-      <div style="display:grid;gap:14px">
+        <div style="display:grid;gap:14px">
         <div class="hints" id="hints"></div>
         <div class="glass remind hide" id="remind"><svg class="ic" width="34" height="34" viewBox="0 0 36 36"><rect x="8" y="9" width="20" height="23" rx="6" fill="#ffb340"/><path d="M13 9a5 5 0 0 1 10 0" stroke="#ffb340" stroke-width="2.5" fill="none"/><rect x="12" y="20" width="12" height="7" rx="2" fill="#fff" opacity=".85"/></svg><div><b data-n="remT">Сегодня понедельник</b><span data-n="remS">Соберите вещи в садик: сменка, пижама, запасная одежда</span></div><button id="remindOk" data-n="done">Готово</button></div>
         <div class="glass phrase"><small data-n="phL">Фраза дня на английском</small><p id="phP"></p><span id="phS"></span></div>
@@ -285,8 +326,8 @@ body:has(.remind:not(.hide)) .phrase{display:none}
           <div class="apps" id="apps"></div>
         </div>
       </div>
-    </section>
-    <section class="right">
+      </div>
+      <section class="right cards">
       <article class="glass card wide">
         <h2><span data-n="hSched">Режим дня</span><button class="plus" data-add="schedule" aria-label="+">+</button></h2>
         <ul class="sched" id="sched"></ul>
@@ -304,6 +345,8 @@ body:has(.remind:not(.hide)) .phrase{display:none}
         <div class="wear-row" id="wear"></div>
       </article>
     </section>
+    </section>
+    <div class="pslot glass" id="photoSlot"><div id="realPhotos"></div><div class="pempty" data-n="noPhotos">Фото из альбома «Луми» появятся здесь</div></div>
   </div>
 
   <section class="pane kids view" id="v-kids">
@@ -458,7 +501,7 @@ const T = {
     hSched: "Режим дня", hTasks: "Няне на сегодня", hCal: "Календарь", hWear: "Что надеть на улицу",
     logSub: "Дневник для няни", hCook: "Что приготовить сегодня", cookEx: "«Папе ✓» — без глютена и с низким содержанием жиров.",
     hShop: "Список покупок", addPh: "Добавить…", add: "Добавить", usual: "Обычно покупаем · оранжевые — пора купить", magnum: "Собрать корзину на magnum.kz",
-    hPhotos: "Фото для экрана", photoHelp: "На экране показываются только выбранные фото.", photoAdd: "С этого устройства", gPick: "Выбрать в Google Фото", gWait: "Выберите фото в открывшемся окне Google Фото и нажмите «Готово»…",
+    hPhotos: "Фото для экрана", photoHelp: "На экране показываются только выбранные фото.", photoAdd: "С этого устройства", noPhotos: "Фото из альбома «Луми» появятся здесь", gPick: "Выбрать в Google Фото", gWait: "Выберите фото в открывшемся окне Google Фото и нажмите «Готово»…",
     nExit: "Выйти из ночного режима", wake: "Коснитесь, чтобы включить", pinTitle: "Введите PIN", cancel: "Отмена",
     loginT: "Луми", loginPh: "Логин", passPh: "Пароль", login: "Войти", signup: "Создать аккаунт", signupDone: "Аккаунт создан. Напишите Claude, чтобы открыть доступ.",
     noAccess: "Вход выполнен, но доступа пока нет. Напишите Claude, чтобы добавить этот аккаунт в семью.", loginErr: "Не получилось войти: ",
@@ -482,7 +525,7 @@ const T = {
     hSched: "Today's routine", hTasks: "Nanny's to-do", hCal: "Calendar", hWear: "What to wear outside",
     logSub: "Log for the nanny", hCook: "What to cook today", cookEx: "“Dad ✓” = gluten-free and low in fat.",
     hShop: "Shopping list", addPh: "Add…", add: "Add", usual: "Usually bought · orange = time to buy", magnum: "Build a magnum.kz cart",
-    hPhotos: "Photos for the screen", photoHelp: "Only the photos you pick appear on the screen.", photoAdd: "From this device", gPick: "Pick from Google Photos", gWait: "Pick photos in the Google Photos window and tap Done…",
+    hPhotos: "Photos for the screen", photoHelp: "Only the photos you pick appear on the screen.", photoAdd: "From this device", noPhotos: "Photos from the «Луми» album will appear here", gPick: "Pick from Google Photos", gWait: "Pick photos in the Google Photos window and tap Done…",
     nExit: "Leave night mode", wake: "Tap to wake", pinTitle: "Enter PIN", cancel: "Cancel",
     loginT: "Lumi", loginPh: "Login", passPh: "Password", login: "Sign in", signup: "Create account", signupDone: "Account created. Ask Claude to grant access.",
     noAccess: "Signed in, but no access yet. Ask Claude to add this account to the family.", loginErr: "Couldn't sign in: ",
@@ -574,6 +617,7 @@ async function loadWeather() {
     const later = (j.hourly.precipitation_probability || []).slice(hrs + 1).some(p => p >= 50);
     const snowLater = (j.hourly.weather_code || []).slice(hrs + 1).some(c => (c >= 71 && c <= 77) || c === 85 || c === 86);
     S.weather = { t: Math.round(j.current.temperature_2m), feels: Math.round(j.current.apparent_temperature), code: j.current.weather_code, later, snowLater };
+    const c = S.weather.code; document.body.dataset.wx = c <= 1 ? "clear" : c <= 3 ? "cloudy" : c <= 48 ? "fog" : (c >= 71 && c <= 77) || c === 85 || c === 86 ? "snow" : "rain";
   } catch (e) { S.weather = null; }
   renderWeather();
 }
