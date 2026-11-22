@@ -500,7 +500,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.4";
 const SB_URL = "https://svjlqxkqvvanclemddce.supabase.co";
 const SB_KEY = "sb_publishable_YHELTOfBVYlvmLKTAb99ww_RWTwf6bb";
 const sb = createClient(SB_URL, SB_KEY);
-const APP_VER = "1795358853";
+const APP_VER = "1795358861";
 /* новая версия на сайте — телевизор перезагрузится сам */
 setInterval(async () => { try { const t = await (await fetch("version.txt?" + Date.now(), { cache: "no-store" })).text(); const v = t.trim(); if (v && v !== APP_VER && new URLSearchParams(location.search).get("v") !== v && !document.querySelector(".ov.open:not(#nightOv)")) location.replace(location.pathname + "?v=" + v); } catch (e) {} }, 5 * 60000);
 /* ---------- Леона: контент по возрасту (месяцы) ---------- */
@@ -1050,7 +1050,7 @@ async function startWake() {
     const st = await navigator.mediaDevices.getUserMedia({ audio: { ...(await micConstraint()), channelCount: 1 } });
     const ac = new AudioContext(); (window.__acs = window.__acs || []).push(ac); try { await ac.resume(); } catch (e) {} const rate = ac.sampleRate;
     const recog = new model.KaldiRecognizer(rate, JSON.stringify(["луми", "привет луми", "хай луми", "эй луми", "люми", "муми", "луни", "лу ми", "[unk]"]));
-    const hit = txt => { if (txt) { wake.heard = (wake.heard || 0) + 1; (wake.texts = wake.texts || []).push(txt); if (wake.texts.length > 20) wake.texts.shift(); } if (!txt || wake.busy || Date.now() - wake.last < 4000) return; if (/(^|\s)(лу ?ми|люми)(\s|$)/.test(txt)) { wake.last = Date.now(); recog.reset?.(); if (!$("askBtn").classList.contains("rec") && !$("askBtn").classList.contains("busy")) $("askBtn").click(); } };
+    const hit = txt => { if (txt) { wake.heard = (wake.heard || 0) + 1; (wake.texts = wake.texts || []).push(txt); if (wake.texts.length > 20) wake.texts.shift(); } if (!txt || wake.busy || Date.now() - wake.last < 4000) return; if (/(^|\s)(лу ?ми|люми|муми|луни)(\s|$)/.test(txt)) { wake.last = Date.now(); recog.reset?.(); if (!$("askBtn").classList.contains("rec") && !$("askBtn").classList.contains("busy")) $("askBtn").click(); } };
     recog.on("result", m => hit(m.result.text));
     recog.on("partialresult", m => hit(m.result.partial));
     const src = ac.createMediaStreamSource(st), proc = ac.createScriptProcessor(4096, 1, 1);
