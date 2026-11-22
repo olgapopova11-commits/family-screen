@@ -455,7 +455,7 @@ const T = {
     steps: { morning: [["tooth", "Зубки"], ["potty", "Горшок"], ["dress", "Одеться"], ["bed", "Кроватка"]], evening: [["toys", "Игрушки"], ["bath", "Купание"], ["pjs", "Пижама"], ["book", "Сказка"]] },
     log: { feed: "Покормили", sleep: "Уснула", wake: "Проснулась", diaper: "Подгузник" }, ago: "назад", min: "мин", h: "ч", never: "сегодня ещё не было", empty: "Сегодня записей нет",
     growth: "Рост и вес", locked: "Скрыто. Откроется по PIN.", open: "Открыть", lock: "Закрыть", cm: "см", kg: "кг", noGrowth: "Пока нет замеров", addMeas: "Добавить замер", wrongPin: "Неверный PIN", setPin: "Придумайте PIN для роста и веса", pinSaved: "PIN сохранён",
-    dadOk: "Папе ✓", items: "шт.", magnumToast: "Список готов. Напишите Claude «собери корзину Magnum».",
+    dadOk: "Папе ✓", ingr: "Ингредиенты", stepsT: "Как готовить", closeT: "Закрыть", items: "шт.", magnumToast: "Список готов. Напишите Claude «собери корзину Magnum».",
     nsound: [["tale", "Сказка"], ["lull", "Колыбельная"], ["noise", "Белый шум"], ["off", "Тишина"]], ntimer: [[15, "15 мин"], [30, "30 мин"], [60, "60 мин"]], nPlay: "играет", nOff: "Тишина", nOut: "экран погаснет через",
     fSched: "Новый пункт режима", fTask: "Новая задача для няни", fEvent: "Новое событие", fGrowth: "Новый замер", fTime: "Время", fTitle: "Что", fWho: "Для кого", fDate: "Дата и время", fAllDay: "Весь день", fKid: "Кто", fH: "Рост, см", fW: "Вес, кг", save: "Сохранить", del: "Удалить",
     saved: "Сохранено", err: "Ошибка: ", uploading: "Загружаю фото…", uploaded: "Фото добавлены", soon: "Скоро: голосовой помощник подключим следующим шагом", noApp: "Приложение откроется на телевизоре через Fully Kiosk",
@@ -479,7 +479,7 @@ const T = {
     steps: { morning: [["tooth", "Teeth"], ["potty", "Potty"], ["dress", "Get dressed"], ["bed", "Make bed"]], evening: [["toys", "Toys away"], ["bath", "Bath"], ["pjs", "Pyjamas"], ["book", "Story"]] },
     log: { feed: "Fed", sleep: "Fell asleep", wake: "Woke up", diaper: "Nappy" }, ago: "ago", min: "min", h: "h", never: "not yet today", empty: "No entries today",
     growth: "Height and weight", locked: "Hidden. Opens with a PIN.", open: "Open", lock: "Lock", cm: "cm", kg: "kg", noGrowth: "No measurements yet", addMeas: "Add measurement", wrongPin: "Wrong PIN", setPin: "Choose a PIN for height and weight", pinSaved: "PIN saved",
-    dadOk: "Dad ✓", items: "items", magnumToast: "List ready. Ask Claude to “build the Magnum cart”.",
+    dadOk: "Dad ✓", ingr: "Ingredients", stepsT: "Method", closeT: "Close", items: "items", magnumToast: "List ready. Ask Claude to “build the Magnum cart”.",
     nsound: [["tale", "Story"], ["lull", "Lullaby"], ["noise", "White noise"], ["off", "Silence"]], ntimer: [[15, "15 min"], [30, "30 min"], [60, "60 min"]], nPlay: "playing", nOff: "Silence", nOut: "screen goes off in",
     fSched: "New routine item", fTask: "New task for the nanny", fEvent: "New event", fGrowth: "New measurement", fTime: "Time", fTitle: "What", fWho: "For whom", fDate: "Date and time", fAllDay: "All day", fKid: "Who", fH: "Height, cm", fW: "Weight, kg", save: "Save", del: "Delete",
     saved: "Saved", err: "Error: ", uploading: "Uploading photos…", uploaded: "Photos added", soon: "Coming soon: the voice assistant is the next step", noApp: "Apps open on the TV through Fully Kiosk",
@@ -595,13 +595,12 @@ const WEAR = {
 };
 
 /* приложения: настраиваются в settings.apps */
-let APPS = [["YouTube", "#ff3b30", "YT", "com.google.android.youtube.tv"], ["YouTube Kids", "#ff9500", "Kids", "com.google.android.youtube.tvkids"], ["Музыка", "#af52de", "♪", ""], ["Касса", "#34c759", "₸", ""]];
+let APPS = [["YouTube", "#ff3b30", "YT", "com.google.android.youtube.tv", "https://www.youtube.com"], ["YouTube Kids", "#ff9500", "Kids", "com.google.android.youtube.tvkids", "https://www.youtubekids.com"], ["Музыка", "#af52de", "♪", "com.google.android.apps.youtube.music", "https://music.youtube.com"], ["Касса", "#34c759", "₸", "https://sunshinesilver.kz", "https://sunshinesilver.kz"]];
 function renderApps() { $("apps").innerHTML = APPS.map(([n, c, s], i) => `<button class="app" data-i="${i}"><i style="background:${c}">${esc(s)}</i>${esc(n)}</button>`).join(""); }
 $("apps").addEventListener("click", e => {
   const b = e.target.closest(".app"); if (!b) return; const a = APPS[+b.dataset.i];
   if (window.fully && a[3]) { a[3].startsWith("http") ? window.fully.loadUrl(a[3]) : window.fully.startApplication(a[3]); }
-  else if (a[3] && a[3].startsWith("http")) location.href = a[3];
-  else toast(L().noApp);
+  else { const url = a[3] && a[3].startsWith("http") ? a[3] : a[4]; if (url) window.open(url, "_blank"); else toast(L().noApp); }
 });
 
 /* ---------- дети ---------- */
@@ -794,8 +793,19 @@ $("growth").addEventListener("click", e => { if (e.target.id === "gadd") openFor
 const DEV = { thermomix: ["Thermomix", ""], kenwood: ["Kenwood Cooking Chef", "k"], other: ["", ""] };
 function renderIdeas() {
   const l = L();
-  $("ideas").innerHTML = S.recipes.slice(0, 4).map(r => `<div class="idea"><div><h4>${esc(r.title)}</h4><p>${esc(r.note || "")}</p></div><div style="display:grid;gap:6px;justify-items:end">${r.device && DEV[r.device][0] ? `<span class="dev ${DEV[r.device][1]}">${DEV[r.device][0]}${r.minutes ? ` · ${r.minutes} ${l.min}` : ""}</span>` : ""}${r.dad_ok ? `<span class="dev" style="background:rgba(52,199,89,.3)">${l.dadOk}</span>` : ""}</div></div>`).join("");
+  const en = lang === "en";
+  $("ideas").innerHTML = S.recipes.slice(0, 4).map(r => `<div class="idea" data-r="${r.id}" role="button" tabindex="0" style="cursor:pointer"><div><h4>${esc(en && r.title_en ? r.title_en : r.title)}</h4><p>${esc(en && r.note_en ? r.note_en : r.note || "")}</p></div><div style="display:grid;gap:6px;justify-items:end">${r.device && DEV[r.device][0] ? `<span class="dev ${DEV[r.device][1]}">${DEV[r.device][0]}${r.minutes ? ` · ${r.minutes} ${l.min}` : ""}</span>` : ""}${r.dad_ok ? `<span class="dev" style="background:rgba(52,199,89,.3)">${l.dadOk}</span>` : ""}</div></div>`).join("");
 }
+$("ideas").addEventListener("click", e => {
+  const c = e.target.closest("[data-r]"); if (!c) return; const r = S.recipes.find(x => x.id === +c.dataset.r); if (!r) return;
+  const l = L(), en = lang === "en", tr = p => Array.isArray(p) ? (en ? p[1] : p[0]) : p;
+  $("formP").dataset.kind = "recipe";
+  $("formP").innerHTML = `<h3>${esc(en && r.title_en ? r.title_en : r.title)}</h3>
+    ${r.ingredients ? `<p class="sub" style="margin:0">${l.ingr}</p><ul class="plays">${r.ingredients.map(x => `<li>${esc(tr(x))}</li>`).join("")}</ul>` : ""}
+    ${r.steps ? `<p class="sub" style="margin:0">${l.stepsT}</p><ol class="plays">${r.steps.map(x => `<li>${esc(tr(x))}</li>`).join("")}</ol>` : `<p>${esc(en && r.note_en ? r.note_en : r.note || "")}</p>`}
+    <div style="display:flex;justify-content:flex-end"><button type="button" class="btn" id="fCancel">${l.closeT}</button></div>`;
+  $("formOv").classList.add("open"); $("fCancel").onclick = () => $("formOv").classList.remove("open");
+});
 function renderShop() {
   const l = L();
   $("shop").innerHTML = S.shopping.map(x => `<li class="${x.done ? "ok" : ""}"><button data-id="${x.id}"><span class="box">${x.done ? '<svg width="12" height="12" viewBox="0 0 12 12"><path d="M2 6l3 3 5-6" stroke="#fff" stroke-width="2" fill="none"/></svg>' : ""}</span><span>${esc(x.text)}</span></button></li>`).join("");
@@ -909,7 +919,7 @@ function openForm(kind, pre = "") {
 }
 document.querySelector(".right").addEventListener("click", e => { const b = e.target.closest("[data-add]"); if (b) openForm(b.dataset.add); });
 $("formP").addEventListener("submit", async e => {
-  e.preventDefault(); const kind = e.target.dataset.kind; const v = id => $(id)?.value?.trim();
+  e.preventDefault(); const kind = e.target.dataset.kind; if (kind === "recipe") return; const v = id => $(id)?.value?.trim();
   if (kind === "schedule") { const row = await q(sb.from("schedule").insert({ at: v("fTime"), title_ru: v("fTitle"), who: v("fWho") || null }).select().single()); S.schedule.push(row); S.schedule.sort((a, b) => a.at.localeCompare(b.at)); renderSched(); }
   if (kind === "task") { const row = await q(sb.from("tasks").insert({ text: v("fTitle") }).select().single()); S.tasks.push(row); renderTasks(); }
   if (kind === "event") { const row = await q(sb.from("events").insert({ title: v("fTitle"), starts_at: new Date(v("fDate")).toISOString(), all_day: $("fAll").checked }).select().single()); S.events.push(row); S.events.sort((a, b) => a.starts_at.localeCompare(b.starts_at)); renderEvents(); }
