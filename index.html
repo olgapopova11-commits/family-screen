@@ -516,7 +516,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.4";
 const SB_URL = "https://svjlqxkqvvanclemddce.supabase.co";
 const SB_KEY = "sb_publishable_YHELTOfBVYlvmLKTAb99ww_RWTwf6bb";
 const sb = createClient(SB_URL, SB_KEY);
-const APP_VER = "1795360974";
+const APP_VER = "1795361043";
 /* новая версия на сайте — телевизор перезагрузится сам */
 setInterval(async () => { try { const t = await (await fetch("version.txt?" + Date.now(), { cache: "no-store" })).text(); const v = t.trim(); if (v && v !== APP_VER && new URLSearchParams(location.search).get("v") !== v && !document.querySelector(".ov.open:not(#nightOv)")) location.replace(location.pathname + "?v=" + v); } catch (e) {} }, 5 * 60000);
 /* ---------- Леона: контент по возрасту (месяцы) ---------- */
@@ -1009,7 +1009,7 @@ $("camP").addEventListener("click", async e => {
 });
 const dist = (a, b) => Math.sqrt(a.reduce((s, x, i) => s + (x - b[i]) ** 2, 0));
 async function recogTick() {
-  if (document.hidden || $("camOv").classList.contains("open") || $("nightOv").classList.contains("open")) return;
+  if (document.hidden || $("camOv").classList.contains("open") || $("nightOv").classList.contains("open") || document.querySelector("#realPhotos .photo.on video")) return;
   const f = faces(); if (!Object.keys(f).length) return;
   const d = await descriptor(); if (!d) return;
   let best = null, bd = 1;
@@ -1143,8 +1143,8 @@ async function loadAlbum() {
 }
 function shuffle(a) { for (let k = a.length - 1; k > 0; k--) { const r = Math.floor(Math.random() * (k + 1)); [a[k], a[r]] = [a[r], a[k]]; } return a; }
 function buildSlides(items) {
-  const wide = [], tall = [];
-  items.forEach(it => (it.w && it.h && it.w / it.h < 1.2 ? tall : wide).push(it));
+  const wide = [], tall = [], vids = [];
+  items.forEach(it => (it.v ? vids : it.w && it.h && it.w / it.h < 1.2 ? tall : wide).push(it));
   shuffle(wide); shuffle(tall);
   const groups = [];
   while (tall.length) {
@@ -1155,7 +1155,10 @@ function buildSlides(items) {
   }
   const out = []; let a = 0, b = 0;
   while (a < wide.length || b < groups.length) { if (a < wide.length) out.push([wide[a++]]); if (b < groups.length && (a % 2 === 0 || a >= wide.length)) out.push(groups[b++]); }
-  return out;
+  // видео — по одному, не чаще чем раз в 5 слайдов (видео с телефона в 4K тяжёлые для приставки)
+  shuffle(vids); const res = []; let k = 0;
+  out.forEach((g, i) => { res.push(g); if (i % 5 === 4 && k < vids.length) res.push([vids[k++]]); });
+  return res;
 }
 const mediaUrl = (it, w) => it.own ? it.u : it.u + `=w${w}-h1440-no`;
 function fillLayer(layer, group, done) {
@@ -1169,7 +1172,7 @@ function fillLayer(layer, group, done) {
     if (it.v) {
       const v = document.createElement("video"); v.muted = true; v.playsInline = true; v.loop = group.length > 1; v.preload = "auto";
       v.oncanplay = () => { v.oncanplay = null; v.play().catch(() => {}); ready(Math.min(45000, Math.max(slideSec * 1000, (v.duration || 15) * 1000))); };
-      let tried = false; v.onerror = () => { if (!tried) { tried = true; v.src = it.u + "=dv"; } else ready(-1); }; v.src = it.u + "=m22"; cell.appendChild(v);
+      v.onerror = () => ready(-1); v.src = it.u + "=dv"; cell.appendChild(v);
     } else {
       const im = new Image(); im.alt = ""; im.onload = () => ready(slideSec * 1000); im.onerror = () => ready(-1); im.src = mediaUrl(it, W); cell.appendChild(im);
     }
