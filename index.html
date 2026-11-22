@@ -493,7 +493,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.4";
 const SB_URL = "https://svjlqxkqvvanclemddce.supabase.co";
 const SB_KEY = "sb_publishable_YHELTOfBVYlvmLKTAb99ww_RWTwf6bb";
 const sb = createClient(SB_URL, SB_KEY);
-const APP_VER = "1795356617";
+const APP_VER = "1795357023";
 /* новая версия на сайте — телевизор перезагрузится сам */
 setInterval(async () => { try { const t = await (await fetch("version.txt?" + Date.now(), { cache: "no-store" })).text(); const v = t.trim(); if (v && v !== APP_VER && new URLSearchParams(location.search).get("v") !== v && !document.querySelector(".ov.open:not(#nightOv)")) location.replace(location.pathname + "?v=" + v); } catch (e) {} }, 5 * 60000);
 /* ---------- Леона: контент по возрасту (месяцы) ---------- */
@@ -1256,6 +1256,7 @@ async function sendAsk(payload) {
     const ctx = { now: new Date().toString(), view: document.querySelector("#nav button.on")?.dataset.v, lang, kids: S.kids.map(k => k.name), apps: APPS.map(a => a[0]) };
     const { data, error } = await sb.functions.invoke("ask", { body: { ...payload, context: ctx } });
     if (error || !data || data.error) throw new Error(error?.message || data?.error || "no answer");
+    if (data.lang && data.lang !== lang && ["ru", "en"].includes(data.lang)) { lang = data.lang; store.set("fs-lang", lang); applyLang(); }
     bubble(data.heard, data.reply || ""); speak(data.reply || "", data.lang || lang); await runActions(data.actions);
   } catch (e) { bubble("", l.askErr); console.warn(e); }
   finally { $("askBtn").classList.remove("busy", "rec"); $("askBtn").querySelector(".t").textContent = l.ask; }
