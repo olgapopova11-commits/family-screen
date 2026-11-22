@@ -377,7 +377,7 @@ body:has(.remind:not(.hide)) .phrase{display:none}
   <form class="glass formp" id="loginF">
     <h3 data-n="loginT">Семейный экран</h3>
     <p id="loginMsg" class="sub" style="margin:0"></p>
-    <input type="email" id="lEmail" autocomplete="username" data-kb inputmode="none" placeholder="Email">
+    <input type="text" id="lEmail" autocomplete="username" data-kb inputmode="none" data-np="loginPh" placeholder="Логин">
     <input type="password" id="lPass" autocomplete="current-password" data-kb inputmode="none" data-np="passPh" placeholder="Пароль">
     <button class="btn" data-n="login">Войти</button>
     <button type="button" class="close" id="signupBtn" data-n="signup">Создать аккаунт</button>
@@ -447,7 +447,7 @@ const T = {
     hShop: "Список покупок", addPh: "Добавить…", add: "Добавить", usual: "Обычно покупаем · оранжевые — пора купить", magnum: "Собрать корзину на magnum.kz",
     hPhotos: "Фото для экрана", photoHelp: "Выберите фото с телефона, в том числе из Google Фото. На экране появятся только они.", photoAdd: "Добавить фото",
     nExit: "Выйти из ночного режима", wake: "Коснитесь, чтобы включить", pinTitle: "Введите PIN", cancel: "Отмена",
-    loginT: "Семейный экран", passPh: "Пароль", login: "Войти", signup: "Создать аккаунт", signupDone: "Аккаунт создан. Напишите Claude, чтобы открыть доступ.",
+    loginT: "Луми", loginPh: "Логин", passPh: "Пароль", login: "Войти", signup: "Создать аккаунт", signupDone: "Аккаунт создан. Напишите Claude, чтобы открыть доступ.",
     noAccess: "Вход выполнен, но доступа пока нет. Напишите Claude, чтобы добавить этот аккаунт в семью.", loginErr: "Не получилось войти: ",
     days: ["воскресенье", "понедельник", "вторник", "среда", "четверг", "пятница", "суббота"], mon: ["января", "февраля", "марта", "апреля", "мая", "июня", "июля", "августа", "сентября", "октября", "ноября", "декабря"],
     now: "сейчас", emptySched: "Пока пусто. Нажмите +, чтобы добавить", emptyTasks: "Задач нет", emptyEv: "Ближайших событий нет", today: "сегодня", allDay: "весь день",
@@ -471,7 +471,7 @@ const T = {
     hShop: "Shopping list", addPh: "Add…", add: "Add", usual: "Usually bought · orange = time to buy", magnum: "Build a magnum.kz cart",
     hPhotos: "Photos for the screen", photoHelp: "Pick photos from your phone, Google Photos included. Only these appear on the screen.", photoAdd: "Add photos",
     nExit: "Leave night mode", wake: "Tap to wake", pinTitle: "Enter PIN", cancel: "Cancel",
-    loginT: "Family screen", passPh: "Password", login: "Sign in", signup: "Create account", signupDone: "Account created. Ask Claude to grant access.",
+    loginT: "Lumi", loginPh: "Login", passPh: "Password", login: "Sign in", signup: "Create account", signupDone: "Account created. Ask Claude to grant access.",
     noAccess: "Signed in, but no access yet. Ask Claude to add this account to the family.", loginErr: "Couldn't sign in: ",
     days: ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"], mon: ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"],
     now: "now", emptySched: "Empty for now. Tap + to add", emptyTasks: "No tasks", emptyEv: "No upcoming events", today: "today", allDay: "all day",
@@ -947,7 +947,13 @@ function renderAll() { renderClock(); renderSched(); renderTasks(); renderEvents
   });
 })();
 
-/* ---------- вход ---------- */
+/* ---------- вход: логин вместо почты ---------- */
+const TR = { а: "a", б: "b", в: "v", г: "g", д: "d", е: "e", ё: "e", ж: "zh", з: "z", и: "i", й: "y", к: "k", л: "l", м: "m", н: "n", о: "o", п: "p", р: "r", с: "s", т: "t", у: "u", ф: "f", х: "h", ц: "ts", ч: "ch", ш: "sh", щ: "sch", ъ: "", ы: "y", ь: "", э: "e", ю: "yu", я: "ya" };
+function creds() {
+  const raw = $("lEmail").value.trim().toLowerCase();
+  const email = raw.includes("@") ? raw : raw.split("").map(c => TR[c] ?? c).join("").replace(/[^a-z0-9._-]/g, "") + "@lumi-family.app";
+  return { email, password: "lumi:" + $("lPass").value };
+}
 async function afterLogin(user) {
   S.me = user;
   const m = await q(sb.from("members").select("role,name").eq("user_id", user.id));
@@ -961,12 +967,12 @@ async function afterLogin(user) {
 }
 $("loginF").addEventListener("submit", async e => {
   e.preventDefault(); $("loginMsg").textContent = "";
-  const { data, error } = await sb.auth.signInWithPassword({ email: $("lEmail").value.trim(), password: $("lPass").value });
+  const { data, error } = await sb.auth.signInWithPassword(creds());
   if (error) { $("loginMsg").textContent = L().loginErr + error.message; return; }
   afterLogin(data.user);
 });
 $("signupBtn").addEventListener("click", async () => {
-  const { error } = await sb.auth.signUp({ email: $("lEmail").value.trim(), password: $("lPass").value });
+  const { error } = await sb.auth.signUp(creds());
   $("loginMsg").textContent = error ? L().loginErr + error.message : L().signupDone;
 });
 
