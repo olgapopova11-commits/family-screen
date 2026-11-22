@@ -500,7 +500,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.4";
 const SB_URL = "https://svjlqxkqvvanclemddce.supabase.co";
 const SB_KEY = "sb_publishable_YHELTOfBVYlvmLKTAb99ww_RWTwf6bb";
 const sb = createClient(SB_URL, SB_KEY);
-const APP_VER = "1795357873";
+const APP_VER = "1795358033";
 /* новая версия на сайте — телевизор перезагрузится сам */
 setInterval(async () => { try { const t = await (await fetch("version.txt?" + Date.now(), { cache: "no-store" })).text(); const v = t.trim(); if (v && v !== APP_VER && new URLSearchParams(location.search).get("v") !== v && !document.querySelector(".ov.open:not(#nightOv)")) location.replace(location.pathname + "?v=" + v); } catch (e) {} }, 5 * 60000);
 /* ---------- Леона: контент по возрасту (месяцы) ---------- */
@@ -1017,6 +1017,21 @@ async function deviceCheck() {
   try { const st = await tmo(navigator.mediaDevices.getUserMedia({ audio: await micConstraint() }), 10000); const tr = st.getAudioTracks()[0]; info.mic = "ok " + tr.label;
     try { const ac = new AudioContext(), an = ac.createAnalyser(); ac.createMediaStreamSource(st).connect(an); const buf = new Uint8Array(an.fftSize); let peak = 0; for (let i = 0; i < 30; i++) { await new Promise(r => setTimeout(r, 100)); an.getByteTimeDomainData(buf); for (const v of buf) peak = Math.max(peak, Math.abs(v - 128)); } info.micLevel = peak; ac.close(); } catch (e) { info.micErr = e.message; }
     st.getTracks().forEach(t => t.stop()); } catch (e) { info.mic = "fail " + e.name + " " + e.message; }
+  // уровень с каждого микрофона отдельно (2 с), с явным resume() аудио
+  try {
+    const ins = (await navigator.mediaDevices.enumerateDevices()).filter(x => x.kind === "audioinput");
+    info.perMic = [];
+    for (const d of ins) {
+      try {
+        const st = await tmo(navigator.mediaDevices.getUserMedia({ audio: { deviceId: { exact: d.deviceId }, echoCancellation: false, noiseSuppression: false, autoGainControl: false } }), 6000);
+        const ac = new AudioContext(); try { await ac.resume(); } catch (e) {}
+        const an = ac.createAnalyser(); ac.createMediaStreamSource(st).connect(an); const buf = new Uint8Array(an.fftSize); let pk = 0;
+        for (let i = 0; i < 20; i++) { await new Promise(r => setTimeout(r, 100)); an.getByteTimeDomainData(buf); for (const v of buf) pk = Math.max(pk, Math.abs(v - 128)); }
+        info.perMic.push(`${d.label || "?"}: peak ${pk}, ac ${ac.state}, settings ${JSON.stringify(st.getAudioTracks()[0].getSettings())}`);
+        ac.close(); st.getTracks().forEach(t => t.stop());
+      } catch (e) { info.perMic.push(`${d.label || "?"}: ${e.name}`); }
+    }
+  } catch (e) {}
   info.stage = "done"; await save();
   return info;
 }
@@ -1033,16 +1048,17 @@ async function startWake() {
     if (!window.Vosk) await new Promise((ok, no) => { const sc = document.createElement("script"); sc.src = VOSK_JS; sc.onload = ok; sc.onerror = no; document.head.appendChild(sc); });
     const model = await Vosk.createModel(VOSK_MODEL);
     const st = await navigator.mediaDevices.getUserMedia({ audio: { ...(await micConstraint()), channelCount: 1 } });
-    const ac = new AudioContext(); const rate = ac.sampleRate;
+    const ac = new AudioContext(); (window.__acs = window.__acs || []).push(ac); try { await ac.resume(); } catch (e) {} const rate = ac.sampleRate;
     const recog = new model.KaldiRecognizer(rate, JSON.stringify(["луми", "привет луми", "хай луми", "эй луми", "люми", "лу ми", "[unk]"]));
-    const hit = txt => { if (!txt || wake.busy || Date.now() - wake.last < 4000) return; if (/(^|\s)(лу ?ми|люми)(\s|$)/.test(txt)) { wake.last = Date.now(); recog.reset?.(); if (!$("askBtn").classList.contains("rec") && !$("askBtn").classList.contains("busy")) $("askBtn").click(); } };
+    const hit = txt => { if (txt) wake.heard = (wake.heard || 0) + 1; if (!txt || wake.busy || Date.now() - wake.last < 4000) return; if (/(^|\s)(лу ?ми|люми)(\s|$)/.test(txt)) { wake.last = Date.now(); recog.reset?.(); if (!$("askBtn").classList.contains("rec") && !$("askBtn").classList.contains("busy")) $("askBtn").click(); } };
     recog.on("result", m => hit(m.result.text));
     recog.on("partialresult", m => hit(m.result.partial));
     const src = ac.createMediaStreamSource(st), proc = ac.createScriptProcessor(4096, 1, 1);
     proc.onaudioprocess = e => { if (wake.busy) return; try { recog.acceptWaveform(e.inputBuffer); } catch (err) {} };
     src.connect(proc); proc.connect(ac.destination);
     $("askBtn").classList.add("wake");
-    try { await sb.from("device_status").insert({ info: { stage: "wake-on", ua: navigator.userAgent, rate } }); } catch (e) {}
+    try { await sb.from("device_status").insert({ info: { stage: "wake-on", ua: navigator.userAgent, rate, ac: ac.state } }); } catch (e) {}
+    setTimeout(async () => { try { await sb.from("device_status").insert({ info: { stage: "wake-state", ua: navigator.userAgent, ac: ac.state, heardAny: wake.heard || 0 } }); } catch (e) {} }, 20000);
   } catch (e) { wake.on = false; console.warn("wake", e); try { await sb.from("device_status").insert({ info: { stage: "wake-fail", err: String(e), ua: navigator.userAgent } }); } catch (e2) {} }
 }
 
@@ -1270,6 +1286,8 @@ $("tasks").addEventListener("click", async e => { const b = e.target.closest("bu
 $("remindOk").addEventListener("click", () => { store.set("fs-remind", todayISO()); renderClock(); renderHints(); });
 /* ---------- голос: нажали «Спросить Луми» → запись → Gemini → ответ голосом + действия ---------- */
 let rec = null;
+/* браузер ТВ может «усыплять» звук до первого нажатия — будим на любое действие */
+['keydown', 'click', 'touchstart'].forEach(ev => addEventListener(ev, () => { try { ttsAC?.resume(); } catch (e) {} window.__acs?.forEach(a => a.resume?.()); }, { capture: true }));
 /* на приставке первым идёт «немой» вход — берём микрофон камеры (USB audio) */
 async function micConstraint() {
   try { const d = (await navigator.mediaDevices.enumerateDevices()).filter(x => x.kind === "audioinput"); const usb = d.find(x => /usb|webcam|camera|xiaovv/i.test(x.label)); if (usb) return { deviceId: { exact: usb.deviceId }, echoCancellation: true, noiseSuppression: true, autoGainControl: true }; } catch (e) {}
@@ -1332,7 +1350,7 @@ $("askBtn").addEventListener("click", async () => {
     rec.ondataavailable = e => e.data.size && chunks.push(e.data);
     rec.onstop = async () => { st.getTracks().forEach(t => t.stop()); clearInterval(vadT); listenUI(false); chime([660, 990]); const blob = new Blob(chunks, { type: rec.mimeType || mime || "audio/webm" }); const m = (rec.mimeType || "audio/webm").split(";")[0]; rec = null; if (blob.size < 2000) { window.lumiWakePause(false); $("askBtn").classList.remove("rec"); $("askBtn").querySelector(".t").textContent = l.ask; return; } await sendAsk({ audio: await b64(blob), mime: m }); };
     // авто-стоп: после речи 1.3 с тишины, максимум 12 с
-    const ac = new AudioContext(), an = ac.createAnalyser(); ac.createMediaStreamSource(st).connect(an); const buf = new Uint8Array(an.fftSize);
+    const ac = new AudioContext(); try { await ac.resume(); } catch (e) {} const an = ac.createAnalyser(); ac.createMediaStreamSource(st).connect(an); const buf = new Uint8Array(an.fftSize);
     let spoke = false, quietSince = 0; const t0 = Date.now();
     const vadT = setInterval(() => { an.getByteTimeDomainData(buf); let pk = 0; for (const v of buf) pk = Math.max(pk, Math.abs(v - 128)); listenUI(true, pk); if (pk > 18) { spoke = true; quietSince = 0; } else if (spoke && !quietSince) quietSince = Date.now(); if ((spoke && quietSince && Date.now() - quietSince > 900) || Date.now() - t0 > 12000) { if (rec && rec.state === "recording") rec.stop(); ac.close(); } }, 100);
     window.lumiWakePause(true); rec.start(); chime([523, 784]); listenUI(true, 0); $('listenTxt').textContent = l.listening; $("askBtn").classList.add("rec"); $("askBtn").querySelector(".t").textContent = l.listening;
