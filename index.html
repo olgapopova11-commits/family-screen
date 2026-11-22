@@ -500,7 +500,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.4";
 const SB_URL = "https://svjlqxkqvvanclemddce.supabase.co";
 const SB_KEY = "sb_publishable_YHELTOfBVYlvmLKTAb99ww_RWTwf6bb";
 const sb = createClient(SB_URL, SB_KEY);
-const APP_VER = "1795358033";
+const APP_VER = "1795358742";
 /* новая версия на сайте — телевизор перезагрузится сам */
 setInterval(async () => { try { const t = await (await fetch("version.txt?" + Date.now(), { cache: "no-store" })).text(); const v = t.trim(); if (v && v !== APP_VER && new URLSearchParams(location.search).get("v") !== v && !document.querySelector(".ov.open:not(#nightOv)")) location.replace(location.pathname + "?v=" + v); } catch (e) {} }, 5 * 60000);
 /* ---------- Леона: контент по возрасту (месяцы) ---------- */
@@ -1335,7 +1335,12 @@ async function sendAsk(payload) {
     const { data, error } = await sb.functions.invoke("ask", { body: { ...payload, context: ctx } });
     if (error || !data || data.error) throw new Error(error?.message || data?.error || "no answer");
     if (data.lang && data.lang !== lang && ["ru", "en"].includes(data.lang)) { lang = data.lang; store.set("fs-lang", lang); applyLang(); }
-    bubble(data.heard, data.reply || ""); speak(data.reply || "", data.lang || lang); await runActions(data.actions);
+    const onTV = isTV();
+    bubble(data.heard, data.reply || "");
+    // с телефона: ответ показывается и звучит на телевизоре; на самом телефоне — тихо
+    if (!onTV) { try { await sb.from("lumi_say").insert({ heard: data.heard, reply: data.reply, lang: data.lang || lang, src: "phone" }); } catch (e) {} if (!window.matchMedia("(pointer:coarse)").matches) speak(data.reply || "", data.lang || lang); }
+    else speak(data.reply || "", data.lang || lang);
+    await runActions(data.actions);
   } catch (e) { bubble("", l.askErr); console.warn(e); }
   finally { setTimeout(() => window.lumiWakePause(false), 3500); $("askBtn").classList.remove("busy", "rec"); $("askBtn").querySelector(".t").textContent = l.ask; }
 }
@@ -1431,6 +1436,7 @@ async function afterLogin(user) {
   await loadAll();
   loadWeather();
   const nh = new Date().getHours(); if (nh >= 21 || nh < 6) setView("night");
+  if (isTV()) sb.channel("lumi-say").on("postgres_changes", { event: "INSERT", schema: "public", table: "lumi_say" }, p => { const r = p.new; if (r.src === "phone") { if (r.lang && r.lang !== lang) { lang = r.lang; store.set("fs-lang", lang); applyLang(); } bubble(r.heard, r.reply || ""); speak(r.reply || "", r.lang || lang); loadAll(); } }).subscribe();
   if (isTV() || new URLSearchParams(location.search).has("check")) deviceCheck().finally(() => { startRecog(); startWake(); }); else startRecog();
 }
 $("loginF").addEventListener("submit", async e => {
