@@ -336,6 +336,8 @@ body[data-tod=night] .wx::after{display:none}
 #skyCv{position:absolute;inset:0;width:100%;height:100%}
 body[data-tod=night][data-wx=fog] .wx,body[data-tod=evening][data-wx=fog] .wx{background:radial-gradient(120% 80% at 70% 0%,#26315a 0%,#141a36 55%,#0a0d1f 100%)!important;filter:none}
 .home .info{scrollbar-width:none}
+.nav button{font-size:19px;padding:12px 24px;min-height:52px}
+.bar button{font-size:16px;padding:10px 16px}
 </style>
 </head>
 <body>
@@ -482,7 +484,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.4";
 const SB_URL = "https://svjlqxkqvvanclemddce.supabase.co";
 const SB_KEY = "sb_publishable_YHELTOfBVYlvmLKTAb99ww_RWTwf6bb";
 const sb = createClient(SB_URL, SB_KEY);
-const APP_VER = "1795355671";
+const APP_VER = "1795355787";
 /* новая версия на сайте — телевизор перезагрузится сам */
 setInterval(async () => { try { const t = await (await fetch("version.txt?" + Date.now(), { cache: "no-store" })).text(); if (t.trim() && t.trim() !== APP_VER && !document.querySelector(".ov.open:not(#nightOv)")) location.reload(); } catch (e) {} }, 5 * 60000);
 /* ---------- Леона: контент по возрасту (месяцы) ---------- */
@@ -1308,7 +1310,7 @@ $("signupBtn").addEventListener("click", async () => {
 /* телевизор: браузер приставки видит экран «маленьким» (≈960px) — масштабируем макет под 1600px */
 function fitTV() {
   const w = innerWidth, h = innerHeight, ua = navigator.userAgent, tv = !!window.fully || /Android/.test(ua) && !/Mobile/.test(ua) || /TV|AFT|BRAVIA|GoogleTV/i.test(ua) || matchMedia("(pointer:none)").matches;
-  const z = tv && w < 1500 && w > h ? w / 1600 : 1;
+  const z = tv && w < 1500 && w > h ? w / 1500 : 1;
   document.documentElement.style.zoom = z;
   document.documentElement.style.setProperty("--vh", (h / z / 100) + "px");
 }
