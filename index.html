@@ -353,6 +353,16 @@ body[data-tod=night][data-wx=fog] .wx,body[data-tod=evening][data-wx=fog] .wx{ba
 @keyframes spin{to{transform:rotate(360deg)}}
 .ltxt{font-size:24px;font-weight:600;text-shadow:0 2px 10px rgba(0,0,0,.6)}
 .cam video{aspect-ratio:16/9;image-rendering:auto}
+.home{grid-template-columns:minmax(0,1.3fr) minmax(0,1fr)}
+.home .phrase{display:none}
+.home .duo{flex-wrap:nowrap}
+.home .apps{flex-wrap:nowrap}
+.home .apps .app i{width:52px;height:52px}
+.home .apps{display:none}
+.bigapps{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:clamp(16px,2vw,28px);max-width:1200px;margin:0 auto;width:100%}
+.bigapps .app{background:rgba(14,18,32,.36);border:1px solid rgba(255,255,255,.16);border-radius:28px;padding:28px 12px;display:grid;justify-items:center;gap:14px;font:600 22px Inter,sans-serif;color:#fff;min-height:180px;cursor:pointer;backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px)}
+.bigapps .app i{width:96px;height:96px;border-radius:26px;font-size:30px}
+.bigapps .app:focus-visible,.bigapps .app:hover{outline:3px solid #ffb340;outline-offset:2px}
 </style>
 </head>
 <body>
@@ -441,6 +451,8 @@ body[data-tod=night][data-wx=fog] .wx,body[data-tod=evening][data-wx=fog] .wx{ba
     </article>
   </section>
 
+  <section class="pane view" id="v-apps"><div class="bigapps" id="appsBig"></div></section>
+
   <section class="pane view" id="v-photos" style="grid-template-columns:minmax(0,1fr)">
     <article class="glass card">
       <h2 data-n="hPhotos">Фото для экрана</h2>
@@ -452,7 +464,7 @@ body[data-tod=night][data-wx=fog] .wx,body[data-tod=evening][data-wx=fog] .wx{ba
   <div class="dots" id="dots"></div>
 </div>
 
-<nav class="glass nav" id="nav"><button class="on" data-v="home" data-n="vHome">Главная</button><button data-v="kids" data-n="vKids">Дети</button><button data-v="baby" data-n="vBaby">Леона</button><button data-v="kitchen" data-n="vKitchen">Кухня</button><button data-v="photos" data-n="vPhotos">Фото</button><button data-v="night" data-n="vNight">Ночь</button></nav>
+<nav class="glass nav" id="nav"><button class="on" data-v="home" data-n="vHome">Главная</button><button data-v="kids" data-n="vKids">Дети</button><button data-v="baby" data-n="vBaby">Леона</button><button data-v="kitchen" data-n="vKitchen">Кухня</button><button data-v="apps" data-n="vApps">Приложения</button><button data-v="photos" data-n="vPhotos">Фото</button><button data-v="night" data-n="vNight">Ночь</button></nav>
 <div class="glass bar"><button class="on" data-l="ru">RU</button><button data-l="en">EN</button></div>
 <div class="toast" id="toast"></div>
 <div class="glass lumisay" id="lumiSay"></div>
@@ -501,7 +513,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.4";
 const SB_URL = "https://svjlqxkqvvanclemddce.supabase.co";
 const SB_KEY = "sb_publishable_YHELTOfBVYlvmLKTAb99ww_RWTwf6bb";
 const sb = createClient(SB_URL, SB_KEY);
-const APP_VER = "1795359802";
+const APP_VER = "1795360085";
 /* новая версия на сайте — телевизор перезагрузится сам */
 setInterval(async () => { try { const t = await (await fetch("version.txt?" + Date.now(), { cache: "no-store" })).text(); const v = t.trim(); if (v && v !== APP_VER && new URLSearchParams(location.search).get("v") !== v && !document.querySelector(".ov.open:not(#nightOv)")) location.replace(location.pathname + "?v=" + v); } catch (e) {} }, 5 * 60000);
 /* ---------- Леона: контент по возрасту (месяцы) ---------- */
@@ -594,7 +606,7 @@ const store = { get(k, d) { try { const v = JSON.parse(localStorage.getItem(k));
 /* ---------- тексты ---------- */
 const T = {
   ru: {
-    vHome: "Главная", vKids: "Дети", vKitchen: "Кухня", vPhotos: "Фото", vNight: "Ночь",
+    vHome: "Главная", vApps: "Приложения", vKids: "Дети", vKitchen: "Кухня", vPhotos: "Фото", vNight: "Ночь",
     wLoading: "Загружаю погоду…", remT: "Сегодня понедельник", remS: "Соберите вещи в садик: сменка, пижама, запасная одежда", done: "Готово",
     phL: "Фраза дня на английском", ask: "Скажите «Луми» или нажмите", listening: "Слушаю… говорите", thinking: "Думаю…", askErr: "Не получилось ответить. Попробуйте ещё раз.", micErr: "Нет доступа к микрофону",
     hSched: "Режим дня", hTasks: "Няне на сегодня", hCal: "Календарь", hWear: "Что надеть на улицу",
@@ -618,7 +630,7 @@ const T = {
     almaty: "Алматы", later: "позже осадки"
   },
   en: {
-    vHome: "Home", vKids: "Kids", vKitchen: "Kitchen", vPhotos: "Photos", vNight: "Night",
+    vHome: "Home", vApps: "Apps", vKids: "Kids", vKitchen: "Kitchen", vPhotos: "Photos", vNight: "Night",
     wLoading: "Loading weather…", remT: "It's Monday", remS: "Pack the kindergarten bag: indoor shoes, pyjamas, spare clothes", done: "Done",
     phL: "Phrase of the day in Russian", ask: "Say “Lumi” or tap", listening: "Listening… go ahead", thinking: "Thinking…", askErr: "Couldn't answer. Try again.", micErr: "No microphone access",
     hSched: "Today's routine", hTasks: "Nanny's to-do", hCal: "Calendar", hWear: "What to wear outside",
@@ -752,7 +764,8 @@ const WEAR = {
 
 /* приложения: настраиваются в settings.apps */
 let APPS = [["YouTube", "#ff3b30", "YT", "com.google.android.youtube.tv", "https://www.youtube.com"], ["YouTube Kids", "#ff9500", "Kids", "com.google.android.youtube.tvkids", "https://www.youtubekids.com"], ["Музыка", "#af52de", "♪", "com.google.android.apps.youtube.music", "https://music.youtube.com"], ["Касса", "#34c759", "₸", "https://sunshinesilver.kz", "https://sunshinesilver.kz"]];
-function renderApps() { $("apps").innerHTML = APPS.map(([n, c, s], i) => `<button class="app" data-i="${i}"><i style="background:${c}">${esc(s)}</i>${esc(n)}</button>`).join(""); }
+function renderApps() { const h = APPS.map(([n, c, s], i) => `<button class="app" data-i="${i}"><i style="background:${c}">${esc(s)}</i><span>${esc(n)}</span></button>`).join(""); $("apps").innerHTML = h; $("appsBig").innerHTML = h; }
+$("appsBig").addEventListener("click", e => { const b = e.target.closest(".app"); if (b) $("apps").querySelector(`.app[data-i="${b.dataset.i}"]`)?.click(); });
 $("apps").addEventListener("click", e => {
   const b = e.target.closest(".app"); if (!b) return; const a = APPS[+b.dataset.i];
   if (window.fully && a[3]) { a[3].startsWith("http") ? window.fully.loadUrl(a[3]) : window.fully.startApplication(a[3]); }
@@ -1375,7 +1388,7 @@ $("nexit").addEventListener("click", e => { e.stopPropagation(); clearInterval(t
 /* ---------- навигация и язык ---------- */
 function setView(v) {
   if (v === "night") { renderNight(); $("nightOv").classList.add("open"); }
-  else ["home", "kids", "baby", "kitchen", "photos"].forEach(x => $("v-" + x).classList.toggle("on", x === v));
+  else ["home", "kids", "baby", "kitchen", "apps", "photos"].forEach(x => $("v-" + x).classList.toggle("on", x === v));
   document.querySelectorAll("#nav button").forEach(b => b.classList.toggle("on", b.dataset.v === v));
 }
 $("nav").addEventListener("click", e => { const b = e.target.closest("button"); if (b) setView(b.dataset.v); });
@@ -1437,7 +1450,7 @@ async function afterLogin(user) {
   await loadAll();
   loadWeather();
   const nh = new Date().getHours(); if (nh >= 21 || nh < 6) setView("night");
-  if (isTV()) sb.channel("lumi-say").on("postgres_changes", { event: "INSERT", schema: "public", table: "lumi_say" }, p => { const r = p.new; if (r.src === "phone") { if (r.lang && r.lang !== lang) { lang = r.lang; store.set("fs-lang", lang); applyLang(); } bubble(r.heard, r.reply || ""); speak(r.reply || "", r.lang || lang); loadAll(); } }).subscribe();
+  if (isTV() && sb.channel) sb.channel("lumi-say").on("postgres_changes", { event: "INSERT", schema: "public", table: "lumi_say" }, p => { const r = p.new; if (r.src === "phone") { if (r.lang && r.lang !== lang) { lang = r.lang; store.set("fs-lang", lang); applyLang(); } bubble(r.heard, r.reply || ""); speak(r.reply || "", r.lang || lang); loadAll(); } }).subscribe();
   if (isTV() || new URLSearchParams(location.search).has("check")) deviceCheck().finally(() => { startRecog(); startWake(); }); else startRecog();
 }
 $("loginF").addEventListener("submit", async e => {
@@ -1455,7 +1468,7 @@ $("signupBtn").addEventListener("click", async () => {
 function isTV() { const ua = navigator.userAgent; return !!window.fully || /Android/.test(ua) && (navigator.maxTouchPoints === 0 || /\bwv\b|TV|AFT|MIBOX|BRAVIA/i.test(ua) || !/Mobile/.test(ua)) || /GoogleTV|SmartTV/i.test(ua) || matchMedia("(pointer:none)").matches; }
 function fitTV() {
   const w = innerWidth, h = innerHeight, ua = navigator.userAgent, tv = isTV();
-  const z = tv && w < 1500 && w > h ? w / 1500 : 1;
+  const z = tv && w < 1500 && w > h ? w / 1340 : 1;
   document.documentElement.style.zoom = z;
   document.documentElement.style.setProperty("--vh", (h / z / 100) + "px");
 }
