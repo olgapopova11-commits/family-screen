@@ -513,7 +513,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.4";
 const SB_URL = "https://svjlqxkqvvanclemddce.supabase.co";
 const SB_KEY = "sb_publishable_YHELTOfBVYlvmLKTAb99ww_RWTwf6bb";
 const sb = createClient(SB_URL, SB_KEY);
-const APP_VER = "1795360203";
+const APP_VER = "1795360231";
 /* новая версия на сайте — телевизор перезагрузится сам */
 setInterval(async () => { try { const t = await (await fetch("version.txt?" + Date.now(), { cache: "no-store" })).text(); const v = t.trim(); if (v && v !== APP_VER && new URLSearchParams(location.search).get("v") !== v && !document.querySelector(".ov.open:not(#nightOv)")) location.replace(location.pathname + "?v=" + v); } catch (e) {} }, 5 * 60000);
 /* ---------- Леона: контент по возрасту (месяцы) ---------- */
@@ -954,12 +954,11 @@ $("whoHere").addEventListener("click", e => { if (e.target.id === "camBtn") retu
 /* ---------- камера: знакомство и узнавание (всё на устройстве, лица хранятся только в этом браузере) ---------- */
 const ADULTS = ["Оля", "Лёша", "Няня"];
 function greetAdult(name) {
-  const en = lang === "en", open = S.tasks.filter(t => !t.done), ev = S.events[0], r = S.recipes.length ? S.recipes[dayN() % S.recipes.length] : null;
-  let msg;
-  if (name === "Няня") msg = en ? `Hello! Tasks for today: ${open.length ? open.map(t => t.text).join(", ") : "none yet"}.` : `Здравствуйте! Задачи на сегодня: ${open.length ? open.map(t => t.text).join(", ") : "пока нет"}.`;
-  else if (name === "Лёша") msg = en ? `Hi Lyosha! Dinner idea: ${r ? (r.title_en || r.title) : "check the Kitchen tab"}.` : `Лёша, привет! Идея на ужин: ${r ? r.title : "загляни на Кухню"}.`;
-  else { if (!open.length && !ev) return; msg = en ? `Hi Olya!${open.length ? ` The nanny has ${open.length} open task${open.length > 1 ? "s" : ""}.` : ""}${ev ? ` Next: ${ev.title}.` : ""}` : `Оля, привет!${open.length ? ` У няни ещё ${open.length} ${open.length === 1 ? "задача" : open.length < 5 ? "задачи" : "задач"}.` : ""}${ev ? ` Ближайшее: ${ev.title}.` : ""}`; }
-  bubble("", msg); speak(msg, lang); chime([523, 659, 784]);
+  // просто приветствие; няня — интерфейс на английском, остальные — на русском
+  const want = name === "Няня" ? "en" : "ru";
+  if (lang !== want) { lang = want; store.set("fs-lang", lang); applyLang(); }
+  const msg = name === "Няня" ? "Hello! Nice to see you!" : name === "Лёша" ? "Лёша, привет!" : "Оля, привет!";
+  bubble("", msg); speak(msg, want); chime([523, 659, 784]);
 }
 const FA_URL = "https://cdn.jsdelivr.net/npm/@vladmandic/face-api@1.7.15/dist/face-api.esm.js";
 const FA_MODELS = "https://cdn.jsdelivr.net/npm/@vladmandic/face-api@1.7.15/model/";
