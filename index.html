@@ -245,6 +245,11 @@ body[data-tod=night] .tint{background:rgba(10,10,40,.35)}
 .clock{font-size:clamp(64px,8.2vw,150px)}
 .weather{margin-top:10px}
 body:has(.remind:not(.hide)) .phrase{display:none}
+/* прозрачнее стекло, чтобы фото было лучше видно */
+.glass{background:rgba(255,255,255,.07);backdrop-filter:blur(10px) saturate(150%);-webkit-backdrop-filter:blur(10px) saturate(150%);border-color:rgba(255,255,255,.22)}
+.formp.glass,.kb.glass,.nav.glass,.bar.glass{background:rgba(30,30,40,.55);backdrop-filter:blur(24px);-webkit-backdrop-filter:blur(24px)}
+.wrap,.pane{text-shadow:0 1px 3px rgba(0,0,0,.45)}
+.hint{background:rgba(255,255,255,.07);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px)}
 </style>
 </head>
 <body>
