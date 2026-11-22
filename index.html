@@ -363,6 +363,8 @@ body[data-tod=night][data-wx=fog] .wx,body[data-tod=evening][data-wx=fog] .wx{ba
 .bigapps .app{background:rgba(14,18,32,.36);border:1px solid rgba(255,255,255,.16);border-radius:28px;padding:28px 12px;display:grid;justify-items:center;gap:14px;font:600 22px Inter,sans-serif;color:#fff;min-height:180px;cursor:pointer;backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px)}
 .bigapps .app i{width:96px;height:96px;border-radius:26px;font-size:30px}
 .bigapps .app:focus-visible,.bigapps .app:hover{outline:3px solid #ffb340;outline-offset:2px}
+.greetline{margin-top:14px;font-size:clamp(20px,1.8vw,30px);font-weight:600;opacity:0;transform:translateY(6px);transition:.6s;min-height:1.2em}
+.greetline.show{opacity:1;transform:none}
 </style>
 </head>
 <body>
@@ -375,6 +377,7 @@ body[data-tod=night][data-wx=fog] .wx,body[data-tod=evening][data-wx=fog] .wx{ba
         <div class="clock" id="clock">--:--</div>
         <div class="date" id="date"></div>
         <div class="weather" id="weather"><span data-n="wLoading">Загружаю погоду…</span></div>
+        <div class="greetline" id="greetLine"></div>
       </div>
         <div style="display:grid;gap:14px">
         <div class="hints" id="hints"></div>
@@ -513,7 +516,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.4";
 const SB_URL = "https://svjlqxkqvvanclemddce.supabase.co";
 const SB_KEY = "sb_publishable_YHELTOfBVYlvmLKTAb99ww_RWTwf6bb";
 const sb = createClient(SB_URL, SB_KEY);
-const APP_VER = "1795360231";
+const APP_VER = "1795360297";
 /* новая версия на сайте — телевизор перезагрузится сам */
 setInterval(async () => { try { const t = await (await fetch("version.txt?" + Date.now(), { cache: "no-store" })).text(); const v = t.trim(); if (v && v !== APP_VER && new URLSearchParams(location.search).get("v") !== v && !document.querySelector(".ov.open:not(#nightOv)")) location.replace(location.pathname + "?v=" + v); } catch (e) {} }, 5 * 60000);
 /* ---------- Леона: контент по возрасту (месяцы) ---------- */
@@ -958,7 +961,7 @@ function greetAdult(name) {
   const want = name === "Няня" ? "en" : "ru";
   if (lang !== want) { lang = want; store.set("fs-lang", lang); applyLang(); }
   const msg = name === "Няня" ? "Hello! Nice to see you!" : name === "Лёша" ? "Лёша, привет!" : "Оля, привет!";
-  bubble("", msg); speak(msg, want); chime([523, 659, 784]);
+  const g = $("greetLine"); g.textContent = msg; g.classList.add("show"); clearTimeout(g._h); g._h = setTimeout(() => g.classList.remove("show"), 120000);
 }
 const FA_URL = "https://cdn.jsdelivr.net/npm/@vladmandic/face-api@1.7.15/dist/face-api.esm.js";
 const FA_MODELS = "https://cdn.jsdelivr.net/npm/@vladmandic/face-api@1.7.15/model/";
