@@ -500,7 +500,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.4";
 const SB_URL = "https://svjlqxkqvvanclemddce.supabase.co";
 const SB_KEY = "sb_publishable_YHELTOfBVYlvmLKTAb99ww_RWTwf6bb";
 const sb = createClient(SB_URL, SB_KEY);
-const APP_VER = "1795357246";
+const APP_VER = "1795357457";
 /* новая версия на сайте — телевизор перезагрузится сам */
 setInterval(async () => { try { const t = await (await fetch("version.txt?" + Date.now(), { cache: "no-store" })).text(); const v = t.trim(); if (v && v !== APP_VER && new URLSearchParams(location.search).get("v") !== v && !document.querySelector(".ov.open:not(#nightOv)")) location.replace(location.pathname + "?v=" + v); } catch (e) {} }, 5 * 60000);
 /* ---------- Леона: контент по возрасту (месяцы) ---------- */
@@ -1242,8 +1242,21 @@ async function micConstraint() {
   return { echoCancellation: true, noiseSuppression: true, autoGainControl: true };
 }
 function listenUI(on, level = 0) { const o = $("listenOv"); o.classList.toggle("on", on); if (on) o.style.setProperty("--lv", Math.min(1, level / 60).toFixed(2)); }
-function speak(text, lng) {
-  try { const u = new SpeechSynthesisUtterance(text); u.lang = lng === "en" ? "en-US" : "ru-RU"; const v = speechSynthesis.getVoices().find(x => x.lang.startsWith(u.lang.slice(0, 2))); if (v) u.voice = v; u.rate = 1; speechSynthesis.cancel(); speechSynthesis.speak(u); } catch (e) {}
+let ttsAC = null;
+async function speak(text, lng) {
+  if (!text) return;
+  try {
+    const { data, error } = await sb.functions.invoke("tts", { body: { text, lang: lng } });
+    if (error || !data?.audio) throw new Error("tts");
+    const rate = +((data.mime || "").match(/rate=(\d+)/) || [0, 24000])[1];
+    const bin = atob(data.audio), n = bin.length >> 1, pcm = new Float32Array(n);
+    for (let i = 0; i < n; i++) { let v = bin.charCodeAt(2 * i) | (bin.charCodeAt(2 * i + 1) << 8); if (v >= 32768) v -= 65536; pcm[i] = v / 32768; }
+    ttsAC = ttsAC || new (window.AudioContext || window.webkitAudioContext)(); await ttsAC.resume();
+    const buf = ttsAC.createBuffer(1, n, rate); buf.copyToChannel(pcm, 0);
+    const src = ttsAC.createBufferSource(); src.buffer = buf; src.connect(ttsAC.destination); src.start();
+  } catch (e) {
+    try { const u = new SpeechSynthesisUtterance(text); u.lang = lng === "en" ? "en-US" : "ru-RU"; speechSynthesis.cancel(); speechSynthesis.speak(u); } catch (e2) {}
+  }
 }
 function bubble(heard, reply) { const b = $("lumiSay"); b.innerHTML = `${heard ? `<small>«${esc(heard)}»</small>` : ""}<p>${esc(reply)}</p>`; b.classList.add("show"); clearTimeout(b._h); b._h = setTimeout(() => b.classList.remove("show"), 9000); }
 async function runActions(list) {
