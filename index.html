@@ -338,6 +338,14 @@ body[data-tod=night][data-wx=fog] .wx,body[data-tod=evening][data-wx=fog] .wx{ba
 .home .info{scrollbar-width:none}
 .nav button{font-size:19px;padding:12px 24px;min-height:52px}
 .bar button{font-size:16px;padding:10px 16px}
+.ask.rec{border-color:#ff6b6b;box-shadow:0 0 0 3px rgba(255,107,107,.35)}
+.ask.rec .mic{animation:pulse 1s ease-in-out infinite}
+.ask.busy .mic{opacity:.6}
+@keyframes pulse{50%{transform:scale(1.15)}}
+.lumisay{position:fixed;left:50%;bottom:40px;translate:-50% 20px;opacity:0;pointer-events:none;transition:.35s;z-index:20;max-width:min(760px,90vw);padding:18px 26px;font-size:22px;line-height:1.35}
+.lumisay.show{opacity:1;translate:-50% 0}
+.lumisay small{display:block;color:var(--faint);font-size:15px;margin-bottom:4px}
+.lumisay p{margin:0}
 </style>
 </head>
 <body>
@@ -440,6 +448,7 @@ body[data-tod=night][data-wx=fog] .wx,body[data-tod=evening][data-wx=fog] .wx{ba
 <nav class="glass nav" id="nav"><button class="on" data-v="home" data-n="vHome">Главная</button><button data-v="kids" data-n="vKids">Дети</button><button data-v="baby" data-n="vBaby">Леона</button><button data-v="kitchen" data-n="vKitchen">Кухня</button><button data-v="photos" data-n="vPhotos">Фото</button><button data-v="night" data-n="vNight">Ночь</button></nav>
 <div class="glass bar"><button class="on" data-l="ru">RU</button><button data-l="en">EN</button></div>
 <div class="toast" id="toast"></div>
+<div class="glass lumisay" id="lumiSay"></div>
 
 <div class="glass kb" id="kb"><div class="kbprev" id="kbprev"></div><div id="kbrows"></div></div>
 
@@ -484,7 +493,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.4";
 const SB_URL = "https://svjlqxkqvvanclemddce.supabase.co";
 const SB_KEY = "sb_publishable_YHELTOfBVYlvmLKTAb99ww_RWTwf6bb";
 const sb = createClient(SB_URL, SB_KEY);
-const APP_VER = "1795355975";
+const APP_VER = "1795356275";
 /* новая версия на сайте — телевизор перезагрузится сам */
 setInterval(async () => { try { const t = await (await fetch("version.txt?" + Date.now(), { cache: "no-store" })).text(); const v = t.trim(); if (v && v !== APP_VER && new URLSearchParams(location.search).get("v") !== v && !document.querySelector(".ov.open:not(#nightOv)")) location.replace(location.pathname + "?v=" + v); } catch (e) {} }, 5 * 60000);
 /* ---------- Леона: контент по возрасту (месяцы) ---------- */
@@ -579,7 +588,7 @@ const T = {
   ru: {
     vHome: "Главная", vKids: "Дети", vKitchen: "Кухня", vPhotos: "Фото", vNight: "Ночь",
     wLoading: "Загружаю погоду…", remT: "Сегодня понедельник", remS: "Соберите вещи в садик: сменка, пижама, запасная одежда", done: "Готово",
-    phL: "Фраза дня на английском", ask: "Спросить Луми",
+    phL: "Фраза дня на английском", ask: "Спросить Луми", listening: "Слушаю… говорите", thinking: "Думаю…", askErr: "Не получилось ответить. Попробуйте ещё раз.", micErr: "Нет доступа к микрофону",
     hSched: "Режим дня", hTasks: "Няне на сегодня", hCal: "Календарь", hWear: "Что надеть на улицу",
     logSub: "Дневник для няни", hCook: "Что приготовить сегодня", cookEx: "«Папе ✓» — без глютена и с низким содержанием жиров.",
     hShop: "Список покупок", addPh: "Добавить…", add: "Добавить", usual: "Обычно покупаем · оранжевые — пора купить", magnum: "Собрать корзину на magnum.kz",
@@ -603,7 +612,7 @@ const T = {
   en: {
     vHome: "Home", vKids: "Kids", vKitchen: "Kitchen", vPhotos: "Photos", vNight: "Night",
     wLoading: "Loading weather…", remT: "It's Monday", remS: "Pack the kindergarten bag: indoor shoes, pyjamas, spare clothes", done: "Done",
-    phL: "Phrase of the day in Russian", ask: "Ask Lumi",
+    phL: "Phrase of the day in Russian", ask: "Ask Lumi", listening: "Listening… go ahead", thinking: "Thinking…", askErr: "Couldn't answer. Try again.", micErr: "No microphone access",
     hSched: "Today's routine", hTasks: "Nanny's to-do", hCal: "Calendar", hWear: "What to wear outside",
     logSub: "Log for the nanny", hCook: "What to cook today", cookEx: "“Dad ✓” = gluten-free and low in fat.",
     hShop: "Shopping list", addPh: "Add…", add: "Add", usual: "Usually bought · orange = time to buy", magnum: "Build a magnum.kz cart",
@@ -1218,7 +1227,56 @@ $("formP").addEventListener("submit", async e => {
 });
 $("tasks").addEventListener("click", async e => { const b = e.target.closest("button"); if (!b) return; const t = S.tasks.find(x => x.id === +b.dataset.id); t.done = !t.done; await q(sb.from("tasks").update({ done: t.done }).eq("id", t.id)); renderTasks(); });
 $("remindOk").addEventListener("click", () => { store.set("fs-remind", todayISO()); renderClock(); renderHints(); });
-$("askBtn").addEventListener("click", () => toast(L().soon));
+/* ---------- голос: нажали «Спросить Луми» → запись → Gemini → ответ голосом + действия ---------- */
+let rec = null;
+function speak(text, lng) {
+  try { const u = new SpeechSynthesisUtterance(text); u.lang = lng === "en" ? "en-US" : "ru-RU"; const v = speechSynthesis.getVoices().find(x => x.lang.startsWith(u.lang.slice(0, 2))); if (v) u.voice = v; u.rate = 1; speechSynthesis.cancel(); speechSynthesis.speak(u); } catch (e) {}
+}
+function bubble(heard, reply) { const b = $("lumiSay"); b.innerHTML = `${heard ? `<small>«${esc(heard)}»</small>` : ""}<p>${esc(reply)}</p>`; b.classList.add("show"); clearTimeout(b._h); b._h = setTimeout(() => b.classList.remove("show"), 9000); }
+async function runActions(list) {
+  for (const a of list || []) {
+    try {
+      if (a.type === "add_task" && a.text) { const row = await q(sb.from("tasks").insert({ text: a.text }).select().single()); S.tasks.push(row); renderTasks(); }
+      else if (a.type === "add_shopping" && a.text) await addShop(a.text);
+      else if (a.type === "add_event" && a.title) { const row = await q(sb.from("events").insert({ title: a.title, starts_at: new Date(a.starts_at || Date.now()).toISOString(), all_day: !!a.all_day }).select().single()); S.events.push(row); S.events.sort((x, y) => x.starts_at.localeCompare(y.starts_at)); renderEvents(); }
+      else if (a.type === "add_schedule" && a.at) { const row = await q(sb.from("schedule").insert({ at: a.at, title_ru: a.title }).select().single()); S.schedule.push(row); S.schedule.sort((x, y) => x.at.localeCompare(y.at)); renderSched(); }
+      else if (a.type === "baby_log" && a.kind) await addLog(a.kind, { ...(a.note ? { note: a.note } : {}), ...(a.value ? { value: +a.value } : {}) });
+      else if (a.type === "slide_speed" && a.seconds) { slideSec = +a.seconds; store.set("fs-slide", slideSec); renderSpeed(); }
+      else if (a.type === "view" && a.name) setView(a.name);
+      else if (a.type === "hide_photo") document.querySelector("#realPhotos .photo.on .phide")?.click();
+      else if (a.type === "lang" && a.code) { lang = a.code; store.set("fs-lang", lang); applyLang(); }
+      else if (a.type === "open_app" && a.name) { const i = APPS.findIndex(x => x[0].toLowerCase() === String(a.name).toLowerCase()); if (i >= 0) document.querySelector(`#apps .app[data-i="${i}"]`)?.click(); }
+      else if (a.type === "greet" && a.name) window.lumiGreet(a.name);
+    } catch (e) { console.warn(e); }
+  }
+}
+async function sendAsk(payload) {
+  const l = L(); $("askBtn").classList.add("busy"); $("askBtn").querySelector(".t").textContent = l.thinking;
+  try {
+    const ctx = { now: new Date().toString(), view: document.querySelector("#nav button.on")?.dataset.v, lang, kids: S.kids.map(k => k.name), apps: APPS.map(a => a[0]) };
+    const { data, error } = await sb.functions.invoke("ask", { body: { ...payload, context: ctx } });
+    if (error || !data || data.error) throw new Error(error?.message || data?.error || "no answer");
+    bubble(data.heard, data.reply || ""); speak(data.reply || "", data.lang || lang); await runActions(data.actions);
+  } catch (e) { bubble("", l.askErr); console.warn(e); }
+  finally { $("askBtn").classList.remove("busy", "rec"); $("askBtn").querySelector(".t").textContent = l.ask; }
+}
+const b64 = blob => new Promise(r => { const fr = new FileReader(); fr.onload = () => r(String(fr.result).split(",")[1]); fr.readAsDataURL(blob); });
+$("askBtn").addEventListener("click", async () => {
+  const l = L();
+  if (rec) { rec.stop(); return; }
+  try {
+    const st = await navigator.mediaDevices.getUserMedia({ audio: true });
+    const mime = ["audio/webm;codecs=opus", "audio/webm", "audio/ogg;codecs=opus", "audio/mp4"].find(m => window.MediaRecorder && MediaRecorder.isTypeSupported(m)) || "";
+    rec = new MediaRecorder(st, mime ? { mimeType: mime } : {}); const chunks = [];
+    rec.ondataavailable = e => e.data.size && chunks.push(e.data);
+    rec.onstop = async () => { st.getTracks().forEach(t => t.stop()); clearInterval(vadT); const blob = new Blob(chunks, { type: rec.mimeType || mime || "audio/webm" }); const m = (rec.mimeType || "audio/webm").split(";")[0]; rec = null; if (blob.size < 2000) { $("askBtn").classList.remove("rec"); $("askBtn").querySelector(".t").textContent = l.ask; return; } await sendAsk({ audio: await b64(blob), mime: m }); };
+    // авто-стоп: после речи 1.3 с тишины, максимум 12 с
+    const ac = new AudioContext(), an = ac.createAnalyser(); ac.createMediaStreamSource(st).connect(an); const buf = new Uint8Array(an.fftSize);
+    let spoke = false, quietSince = 0; const t0 = Date.now();
+    const vadT = setInterval(() => { an.getByteTimeDomainData(buf); let pk = 0; for (const v of buf) pk = Math.max(pk, Math.abs(v - 128)); if (pk > 18) { spoke = true; quietSince = 0; } else if (spoke && !quietSince) quietSince = Date.now(); if ((spoke && quietSince && Date.now() - quietSince > 1300) || Date.now() - t0 > 12000) { if (rec && rec.state === "recording") rec.stop(); ac.close(); } }, 100);
+    rec.start(); chime([880]); $("askBtn").classList.add("rec"); $("askBtn").querySelector(".t").textContent = l.listening;
+  } catch (e) { bubble("", l.micErr + " (" + (e.name || e.message) + ")"); }
+});
 
 /* ---------- ночь ---------- */
 let snd = "off", tEnd = 0, tH = null;
