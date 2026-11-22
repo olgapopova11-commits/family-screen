@@ -334,6 +334,8 @@ body[data-wx=clear] .wx{background:linear-gradient(180deg,#1f5fae 0%,#3f8bd6 55%
 .wx::before{display:none!important}
 body[data-tod=night] .wx::after{display:none}
 #skyCv{position:absolute;inset:0;width:100%;height:100%}
+body[data-tod=night][data-wx=fog] .wx,body[data-tod=evening][data-wx=fog] .wx{background:radial-gradient(120% 80% at 70% 0%,#26315a 0%,#141a36 55%,#0a0d1f 100%)!important;filter:none}
+.home .info{scrollbar-width:none}
 </style>
 </head>
 <body>
@@ -480,7 +482,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.4";
 const SB_URL = "https://svjlqxkqvvanclemddce.supabase.co";
 const SB_KEY = "sb_publishable_YHELTOfBVYlvmLKTAb99ww_RWTwf6bb";
 const sb = createClient(SB_URL, SB_KEY);
-const APP_VER = "1795355601";
+const APP_VER = "1795355671";
 /* новая версия на сайте — телевизор перезагрузится сам */
 setInterval(async () => { try { const t = await (await fetch("version.txt?" + Date.now(), { cache: "no-store" })).text(); if (t.trim() && t.trim() !== APP_VER && !document.querySelector(".ov.open:not(#nightOv)")) location.reload(); } catch (e) {} }, 5 * 60000);
 /* ---------- Леона: контент по возрасту (месяцы) ---------- */
@@ -532,7 +534,7 @@ const Sky = (() => {
     parts = []; clouds = []; stars = [];
     const nCloud = kind === "clear" ? 2 : kind === "fog" ? 0 : 7;
     for (let i = 0; i < nCloud; i++) clouds.push(mkCloud(kind === "rain" || night));
-    if (night && (kind === "clear" || kind === "cloudy")) for (let i = 0; i < 140; i++) stars.push({ x: R(0, W), y: R(0, H * .75), r: R(.4, 1.5), p: R(0, 6.3), s: R(.5, 2) });
+    if (night && kind !== "rain" && kind !== "snow") for (let i = 0; i < (kind === "clear" ? 160 : 110); i++) stars.push({ x: R(0, W), y: R(0, H * .75), r: R(.4, 1.5), p: R(0, 6.3), s: R(.5, 2) });
     if (kind === "rain") for (let i = 0; i < 160; i++) parts.push({ x: R(0, W), y: R(0, H), l: R(8, 18), v: R(380, 620) });
     if (kind === "snow") for (let i = 0; i < 120; i++) parts.push({ x: R(0, W), y: R(0, H), r: R(1, 3.2), v: R(18, 45), p: R(0, 6.3) });
     if (kind === "fog") for (let i = 0; i < 5; i++) clouds.push({ x: R(0, W), y: R(.3, .9) * H, s: R(2, 3.5), v: R(3, 7), a: .25, blobs: Array.from({ length: 8 }, () => [R(-120, 120), R(-10, 10), R(40, 80)]) });
@@ -1305,7 +1307,7 @@ $("signupBtn").addEventListener("click", async () => {
 
 /* телевизор: браузер приставки видит экран «маленьким» (≈960px) — масштабируем макет под 1600px */
 function fitTV() {
-  const w = innerWidth, h = innerHeight, tv = !!window.fully || matchMedia("(pointer:none)").matches || matchMedia("(pointer:coarse)").matches && w > h;
+  const w = innerWidth, h = innerHeight, ua = navigator.userAgent, tv = !!window.fully || /Android/.test(ua) && !/Mobile/.test(ua) || /TV|AFT|BRAVIA|GoogleTV/i.test(ua) || matchMedia("(pointer:none)").matches;
   const z = tv && w < 1500 && w > h ? w / 1600 : 1;
   document.documentElement.style.zoom = z;
   document.documentElement.style.setProperty("--vh", (h / z / 100) + "px");
