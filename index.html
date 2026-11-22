@@ -1,0 +1,982 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Луми</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@200;300;400;500;600;700&display=swap" rel="stylesheet">
+<style>
+/*
+VOICE: спокойный, домашний, как режим StandBy на iPhone — крупно, тихо, без суеты.
+IDEA: фоторамка на стене, поверх которой лежат стеклянные карточки Liquid Glass.
+PICTURE: фото на весь экран (пока нарисованные пейзажи-заглушки), часы огромные.
+COLOUR and TYPE: цвета берёт фото; стекло белое полупрозрачное; акцент тёплый оранжевый. Inter (близок к SF Pro).
+LAYOUT: экран 16:9; слева часы, погода, помощник; справа колонка стеклянных карточек.
+*/
+:root{color-scheme:dark;--ink:#fff;--soft:rgba(255,255,255,.72);--faint:rgba(255,255,255,.5);--glass:rgba(255,255,255,.14);--edge:rgba(255,255,255,.28);--acc:#ffb340}
+*{box-sizing:border-box;min-width:0}
+html,body{height:100%}
+body{margin:0;background:#000;color:var(--ink);font:16px/1.45 Inter,-apple-system,"SF Pro Display",system-ui,sans-serif;overflow-x:clip;-webkit-font-smoothing:antialiased}
+.tv{position:relative;width:100%;min-height:100vh;overflow-x:clip;isolation:isolate}
+.photo{position:fixed;inset:0;z-index:-2;opacity:0;transition:opacity 2s ease}
+.photo.on{opacity:1}
+.photo svg{width:100%;height:100%;display:block}
+.tv::after{content:"";position:fixed;inset:0;z-index:-1;background:linear-gradient(90deg,rgba(0,0,0,.45),rgba(0,0,0,.05) 45%,rgba(0,0,0,.25))}
+.night .tv::after{background:rgba(0,0,0,.55)}
+.wrap{display:grid;grid-template-columns:minmax(0,1.05fr) minmax(0,1fr);gap:clamp(16px,2.4vw,40px);padding:clamp(18px,3vw,56px);min-height:100vh}
+.left{display:flex;flex-direction:column;justify-content:flex-start;gap:clamp(28px,4vw,56px)}
+.clock{font-weight:200;font-size:clamp(72px,10vw,176px);line-height:.92;letter-spacing:-.04em;font-variant-numeric:tabular-nums}
+.date{font-size:clamp(18px,1.9vw,30px);font-weight:500;color:var(--soft);margin-top:10px}
+.weather{display:flex;align-items:center;gap:14px;margin-top:18px;font-size:clamp(16px,1.5vw,22px);color:var(--soft)}
+.weather b{font-size:clamp(28px,2.8vw,44px);font-weight:300;color:var(--ink)}
+.glass{background:var(--glass);border:1px solid var(--edge);border-radius:28px;backdrop-filter:blur(28px) saturate(160%);-webkit-backdrop-filter:blur(28px) saturate(160%);box-shadow:0 10px 40px rgba(0,0,0,.18),inset 0 1px 0 rgba(255,255,255,.35)}
+.phrase{padding:18px 22px;max-width:520px}
+.phrase small{color:var(--faint);font-size:13px}
+.phrase p{margin:4px 0 0;font-size:clamp(18px,1.6vw,24px);font-weight:500}
+.phrase span{color:var(--soft);font-size:15px}
+.ask{display:flex;align-items:center;gap:14px;padding:10px 12px 10px 22px;max-width:520px;cursor:pointer;border-radius:999px;font:inherit;color:inherit;text-align:left;width:100%}
+.ask:focus-visible,button:focus-visible{outline:3px solid var(--acc);outline-offset:3px}
+.ask .t{flex:1;color:var(--soft);font-size:clamp(15px,1.3vw,19px)}
+.mic{width:52px;height:52px;border-radius:50%;display:grid;place-items:center;background:linear-gradient(145deg,#ffcf6b,#ff8a3d);flex:none}
+.mic svg{width:22px;height:22px}
+.right{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:clamp(12px,1.4vw,20px);align-content:start}
+.card{padding:clamp(16px,1.5vw,24px)}
+.card.wide{grid-column:1/-1}
+.card h2{margin:0 0 12px;font-size:13px;font-weight:600;color:var(--faint);display:flex;justify-content:space-between}
+.sched{list-style:none;margin:0;padding:0;display:grid;gap:4px}
+.sched li{display:grid;grid-template-columns:64px minmax(0,1fr) auto;gap:12px;align-items:baseline;padding:7px 10px;border-radius:14px;color:var(--soft)}
+.sched li.done{opacity:.45}
+.sched li.now{background:rgba(255,255,255,.18);color:var(--ink)}
+.sched time{font-variant-numeric:tabular-nums;font-weight:600;white-space:nowrap}
+.sched .who{font-size:13px;color:var(--faint)}
+.sched li.now .who{color:var(--acc)}
+.tasks{list-style:none;margin:0;padding:0;display:grid;gap:2px}
+.tasks button{all:unset;display:flex;align-items:center;gap:12px;padding:8px 4px;cursor:pointer;width:100%;border-radius:10px;font-size:15px}
+.tasks .box{width:22px;height:22px;border-radius:50%;border:2px solid var(--edge);flex:none;display:grid;place-items:center}
+.tasks .ok .box{background:var(--acc);border-color:var(--acc)}
+.tasks .ok span:last-child{text-decoration:line-through;color:var(--faint)}
+.ev{display:grid;gap:10px}
+.ev div{display:flex;gap:12px;align-items:center;font-size:15px}
+.ev i{width:4px;align-self:stretch;border-radius:2px;flex:none}
+.ev small{display:block;color:var(--faint);font-size:13px}
+.game p{margin:0;font-size:17px;font-weight:500}
+.game span{color:var(--soft);font-size:14px}
+.news{display:grid;gap:8px;font-size:15px;color:var(--soft)}
+.news b{color:var(--ink);font-weight:500}
+.remind{display:flex;align-items:center;gap:14px;padding:14px 14px 14px 18px;max-width:520px;border-color:rgba(255,179,64,.6)}
+.remind .ic{font-size:26px}
+.remind div{flex:1;display:grid}
+.remind b{font-size:17px;font-weight:600}
+.remind span{color:var(--soft);font-size:14px}
+.remind button{font:600 14px Inter,sans-serif;color:#1a1a1a;background:var(--acc);border:0;border-radius:999px;padding:10px 16px;min-height:44px;cursor:pointer}
+.remind.hide{display:none}
+.wear-row{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:10px}
+.wear-row div{display:grid;justify-items:center;gap:6px;text-align:center;font-size:13px;color:var(--soft);padding:10px 4px;border-radius:16px;background:rgba(255,255,255,.08)}
+.wear-row svg{width:36px;height:36px}
+.wear-tip{grid-column:1/-1;margin-top:4px;font-size:14px;color:var(--soft)}
+.dots{position:fixed;bottom:18px;left:50%;translate:-50% 0;display:flex;gap:8px}
+.dots i{width:7px;height:7px;border-radius:50%;background:rgba(255,255,255,.4)}
+.dots i.on{background:#fff}
+.bar{position:fixed;top:14px;right:14px;display:flex;gap:6px;z-index:5;padding:5px;border-radius:999px}
+.bar button{font:500 13px Inter,sans-serif;color:#fff;background:transparent;border:0;padding:8px 14px;border-radius:999px;cursor:pointer;min-height:36px}
+.bar button.on{background:rgba(255,255,255,.25)}
+.bar .sep{width:1px;background:rgba(255,255,255,.3);margin:6px 2px}
+.toast{position:fixed;top:70px;left:50%;translate:-50% -10px;opacity:0;transition:.3s;z-index:20;padding:12px 20px;border-radius:999px;background:rgba(30,30,30,.7);backdrop-filter:blur(20px);font-weight:500;pointer-events:none}
+.toast.show{opacity:1;translate:-50% 0}
+.note{position:fixed;left:20px;top:28px;max-width:300px;font-size:12px;color:var(--faint);z-index:5}
+/* помощник */
+.sheet{position:fixed;inset:0;display:grid;place-items:center;background:rgba(0,0,0,.35);backdrop-filter:blur(6px);opacity:0;pointer-events:none;transition:opacity .35s;z-index:9}
+.sheet.open{opacity:1;pointer-events:auto}
+.panel{width:min(680px,92vw);padding:28px;display:grid;gap:16px}
+.orb{width:84px;height:84px;margin:0 auto;border-radius:50%;background:conic-gradient(from 0deg,#ff8a3d,#ffcf6b,#7ad7ff,#c58bff,#ff8a3d);filter:blur(1px);animation:spin 4s linear infinite}
+@keyframes spin{to{rotate:360deg}}
+.q{font-size:20px;text-align:center;color:var(--soft)}
+.a{font-size:22px;line-height:1.4;text-align:center;min-height:62px}
+.chips{display:flex;flex-wrap:wrap;gap:8px;justify-content:center}
+.chips button{font:500 14px Inter,sans-serif;color:#fff;background:rgba(255,255,255,.16);border:1px solid var(--edge);border-radius:999px;padding:10px 16px;cursor:pointer;min-height:44px}
+.close{justify-self:center;font:500 14px Inter,sans-serif;color:var(--faint);background:none;border:0;cursor:pointer;padding:10px}
+@media (prefers-reduced-motion:reduce){.orb{animation:none}.photo{transition:none}}
+@media(max-width:900px){.wrap{grid-template-columns:minmax(0,1fr)}.tv{aspect-ratio:auto}}
+@media(max-width:600px){.wear-row{grid-template-columns:repeat(3,minmax(0,1fr))}.right{grid-template-columns:minmax(0,1fr)}.sched li{grid-template-columns:54px minmax(0,1fr)}.sched .who{grid-column:2}}
+
+/* v4: вкладки, дети, кухня, ночь, звонок */
+.view:not(.on){display:none!important}
+.wrap{padding-top:clamp(74px,7vw,100px)}
+.nav{position:fixed;top:14px;left:50%;translate:-50% 0;display:flex;gap:4px;padding:5px;border-radius:999px;z-index:6}
+.nav button{font:500 15px Inter,sans-serif;color:#fff;background:transparent;border:0;padding:10px 18px;border-radius:999px;min-height:44px;cursor:pointer;white-space:nowrap}
+.nav button.on{background:rgba(255,255,255,.25)}
+.pane{padding:clamp(74px,7vw,100px) clamp(18px,3vw,56px) clamp(18px,3vw,40px);min-height:100vh;display:grid;gap:clamp(12px,1.4vw,20px);align-content:start}
+.kids{grid-template-columns:repeat(3,minmax(0,1fr))}
+.rhead{display:flex;justify-content:space-between;align-items:baseline;gap:10px;margin-bottom:12px}
+.rhead h3{margin:0;font-size:clamp(22px,2vw,30px);font-weight:600}
+.rhead small{display:block;color:var(--faint);font-size:13px}
+.stars{color:var(--acc);font-weight:700;font-size:20px;white-space:nowrap}
+.steps{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+.step{font:500 15px Inter,sans-serif;color:#fff;cursor:pointer;display:grid;justify-items:center;gap:6px;padding:14px 8px;border-radius:20px;background:rgba(255,255,255,.1);border:1px solid transparent;text-align:center;position:relative;min-height:44px;transition:transform .15s}
+.step svg{width:clamp(44px,4vw,60px);height:clamp(44px,4vw,60px)}
+.step.ok{background:rgba(255,179,64,.26);border-color:rgba(255,179,64,.6)}
+.step.ok::after{content:"★";position:absolute;top:6px;right:10px;color:var(--acc);font-size:22px}
+.step:active{transform:scale(.96)}
+.hooray{margin-top:10px;text-align:center;color:var(--acc);font-weight:600;min-height:22px}
+.logb{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+.logb button{font:600 15px Inter,sans-serif;color:#fff;background:rgba(255,255,255,.14);border:1px solid var(--edge);border-radius:18px;padding:12px 10px;min-height:60px;cursor:pointer;display:grid;gap:2px}
+.logb button small{font-weight:400;color:var(--faint);font-size:12px}
+.loglist{list-style:none;margin:12px 0 0;padding:0;display:grid;gap:2px;font-size:14px;color:var(--soft);max-height:170px;overflow:auto}
+.loglist li{display:flex;align-items:center;gap:10px;padding:4px 0}
+.loglist time{font-weight:600;color:#fff;font-variant-numeric:tabular-nums}
+.loglist span{flex:1}
+.loglist button{font:16px Inter,sans-serif;color:var(--faint);background:none;border:0;cursor:pointer;min-width:32px;min-height:32px}
+.growth{grid-column:1/-1}
+.lockbox{display:flex;align-items:center;gap:16px;color:var(--soft);flex-wrap:wrap}
+.btn{font:600 15px Inter,sans-serif;color:#1a1a1a;background:var(--acc);border:0;border-radius:999px;padding:12px 20px;min-height:44px;cursor:pointer}
+.btn.ghost{background:rgba(255,255,255,.16);color:#fff;border:1px solid var(--edge)}
+.grow-rows{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px}
+.gr{padding:14px;border-radius:18px;background:rgba(255,255,255,.08)}
+.gr b{font-size:18px}.gr p{margin:4px 0;color:var(--soft);font-size:14px}.gr svg{width:100%;height:64px;display:block}
+.kitchen{grid-template-columns:minmax(0,1.3fr) minmax(0,1fr)}
+.ideas{display:grid;gap:12px}
+.idea{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:14px;align-items:center;padding:14px 16px;border-radius:20px;background:rgba(255,255,255,.08)}
+.idea h4{margin:0 0 4px;font-size:18px}.idea p{margin:0;color:var(--soft);font-size:14px}
+.dev{font-size:12px;font-weight:600;padding:5px 10px;border-radius:999px;background:rgba(122,215,255,.25);white-space:nowrap}
+.dev.k{background:rgba(197,139,255,.3)}
+.addrow{display:flex;gap:8px;margin-bottom:10px}
+.addrow input{flex:1;font:16px Inter,sans-serif;color:#fff;background:rgba(255,255,255,.12);border:1px solid var(--edge);border-radius:14px;padding:10px 14px;min-height:44px}
+.addrow input::placeholder{color:var(--faint)}
+.usual{display:flex;flex-wrap:wrap;gap:8px;margin-top:8px}
+.usual button{font:500 14px Inter,sans-serif;color:#fff;background:rgba(255,255,255,.1);border:1px dashed var(--edge);border-radius:999px;padding:8px 14px;min-height:40px;cursor:pointer}
+.usual button.due{border:1px solid var(--acc)}
+.sub{font-size:13px;color:var(--faint);margin:14px 0 4px}
+.callbtn{display:flex;align-items:center;gap:14px;padding:8px 10px 8px 8px;max-width:520px;border-radius:999px;cursor:pointer;font:inherit;color:inherit;width:100%;text-align:left}
+.ava{width:52px;height:52px;border-radius:50%;background:linear-gradient(145deg,#c58bff,#7ad7ff);display:grid;place-items:center;font-weight:700;font-size:22px;flex:none;color:#fff}
+.callbtn .sr{flex:1}
+.ph{width:48px;height:48px;border-radius:50%;background:#34c759;display:grid;place-items:center;flex:none}
+.ov{position:fixed;inset:0;z-index:12;display:grid;place-items:center;opacity:0;pointer-events:none;transition:opacity .5s}
+.ov.open{opacity:1;pointer-events:auto}
+#nightOv{background:radial-gradient(circle at 50% 35%,#1b2140,#04050a 70%);cursor:default}
+.nightbox{display:grid;justify-items:center;gap:18px;text-align:center;transition:opacity 2s;padding:20px}
+.moon{width:110px;height:110px;border-radius:50%;box-shadow:inset -26px -8px 0 0 #ffe7a8;rotate:-20deg}
+.nclock{font-size:clamp(48px,6vw,72px);font-weight:200;color:rgba(255,255,255,.7);font-variant-numeric:tabular-nums}
+.nrow{display:flex;gap:10px;flex-wrap:wrap;justify-content:center}
+.nrow button{font:500 15px Inter,sans-serif;color:#fff;background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.2);border-radius:999px;padding:12px 18px;min-height:44px;cursor:pointer}
+.nrow button.on{background:rgba(255,231,168,.22);border-color:#ffe7a8}
+.nstatus{color:rgba(255,255,255,.55);font-size:15px;min-height:22px}
+#nightOv.sleep{background:#000}
+#nightOv.sleep .nightbox{opacity:0;pointer-events:none}
+.wake{position:absolute;bottom:24px;color:rgba(255,255,255,.25);font-size:13px;opacity:0;transition:opacity 2s}
+#nightOv.sleep .wake{opacity:1}
+#callOv,#pinOv{background:rgba(0,0,0,.45);backdrop-filter:blur(8px)}
+.callp{padding:32px;display:grid;justify-items:center;gap:14px;width:min(420px,92vw);text-align:center}
+.callp .ava{width:110px;height:110px;font-size:44px;animation:pulse 1.6s ease-in-out infinite}
+@keyframes pulse{50%{box-shadow:0 0 0 18px rgba(197,139,255,.18)}}
+.callp p{margin:0;color:var(--soft)}
+.end{background:#ff3b30;color:#fff}
+.pinp{padding:28px;display:grid;gap:14px;width:min(360px,92vw);justify-items:center}
+.pindots{display:flex;gap:12px}.pindots i{width:14px;height:14px;border-radius:50%;border:2px solid #fff}.pindots i.f{background:#fff}
+.keys{display:grid;grid-template-columns:repeat(3,64px);gap:10px}
+.keys button{width:64px;height:64px;border-radius:50%;font:500 24px Inter,sans-serif;color:#fff;background:rgba(255,255,255,.16);border:0;cursor:pointer}
+.pinerr{color:#ff9c94;min-height:20px;font-size:14px}
+.ex{font-size:12px;color:var(--faint);margin:10px 0 0}
+@media (prefers-reduced-motion:reduce){.callp .ava{animation:none}.step{transition:none}}
+@media(max-width:900px){.kids,.kitchen,.grow-rows{grid-template-columns:minmax(0,1fr)}.nav button{padding:10px 12px;font-size:14px}}
+.duo{display:grid;grid-template-columns:minmax(0,1fr);gap:12px;max-width:560px}.duo .ask{max-width:none}.duo .callbtn{max-width:none}
+@media(max-width:600px){.duo{grid-template-columns:minmax(0,1fr)}}
+.callbtn .sr{font-size:clamp(14px,1.2vw,17px);white-space:nowrap}
+
+.kb{position:fixed;left:50%;bottom:24px;translate:-50% 20px;width:min(760px,96vw);padding:14px;display:grid;gap:8px;z-index:15;opacity:0;pointer-events:none;transition:opacity .2s,translate .2s;background:rgba(30,32,44,.72)}
+.kb.open{opacity:1;pointer-events:auto;translate:-50% 0}
+.kbrow{display:flex;gap:6px;justify-content:center}
+.kb button{flex:1 1 0;min-width:0;height:48px;font:500 18px Inter,sans-serif;color:#fff;background:rgba(255,255,255,.14);border:0;border-radius:12px;cursor:pointer}
+.kb button:active{background:rgba(255,255,255,.3)}
+.kb .w15{flex-grow:1.5}.kb .w2{flex-grow:2.2}.kb .w6{flex-grow:6}
+.kb .acc{background:var(--acc);color:#1a1a1a;font-weight:600}
+.kbprev{font-size:15px;color:var(--soft);padding:2px 6px;min-height:22px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.apps{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:10px;max-width:560px}
+.app{font:500 13px Inter,sans-serif;color:#fff;background:none;border:0;cursor:pointer;display:grid;justify-items:center;gap:6px;padding:4px;min-height:44px}
+.app i{width:58px;height:58px;border-radius:16px;display:grid;place-items:center;font-style:normal;font-weight:700;font-size:20px;box-shadow:0 6px 18px rgba(0,0,0,.25)}
+.plus{font:600 20px Inter,sans-serif;color:#fff;background:rgba(255,255,255,.14);border:1px solid var(--edge);border-radius:50%;width:36px;height:36px;line-height:1;cursor:pointer;margin:-8px -6px -8px 0}
+.card h2{align-items:center}
+.formp{padding:26px;display:grid;gap:14px;width:min(460px,92vw)}
+.formp h3{margin:0;font-size:22px}
+.fl{display:grid;gap:6px;font-size:14px;color:var(--soft)}
+.fl.row{display:flex;align-items:center;gap:10px}
+.formp input:not([type=checkbox]),.formp select{font:16px Inter,sans-serif;color:#fff;background:rgba(255,255,255,.12);border:1px solid var(--edge);border-radius:14px;padding:10px 14px;min-height:44px;color-scheme:dark}
+.formp select option{color:#000}
+#formOv,#loginOv{background:rgba(0,0,0,.5);backdrop-filter:blur(10px)}
+#loginOv{background:rgba(5,8,20,.85)}
+.pgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:10px;margin-top:18px}
+.pgrid img{width:100%;aspect-ratio:4/3;object-fit:cover;border-radius:14px}
+.kb{z-index:20}
+.ov{z-index:14}
+.hints{display:grid;gap:8px;max-width:560px}.hints:empty{display:none}
+.hint{display:flex;align-items:center;gap:12px;text-align:left;font:500 clamp(14px,1.15vw,17px) Inter,sans-serif;color:#fff;background:rgba(255,255,255,.12);border:1px solid var(--edge);border-radius:18px;padding:11px 16px;min-height:48px;cursor:pointer;backdrop-filter:blur(24px);-webkit-backdrop-filter:blur(24px)}
+.hint i{width:10px;height:10px;border-radius:50%;flex:none;box-shadow:0 0 10px currentColor}
+.baby{grid-template-columns:minmax(0,1fr) minmax(0,1fr) minmax(0,1fr)}
+.bcol{display:grid;gap:clamp(12px,1.4vw,20px);align-content:start}
+.bsleep{display:grid;align-content:start}
+.bstat{text-align:center;margin:6px 0 0}.bstat small{color:var(--soft);font-size:16px}.bstat b{display:block;font-size:clamp(40px,4.2vw,64px);font-weight:300;letter-spacing:-.02em;font-variant-numeric:tabular-nums}
+.bstat.zz b{color:#b8c7ff}
+.ring{width:min(240px,70%);display:block;margin:8px auto}
+.bsub{text-align:center;color:var(--soft);margin:0 0 14px;font-size:15px}
+.btn.big{width:100%;font-size:18px;min-height:60px}
+.linkb{font:500 13px Inter,sans-serif;color:var(--acc);background:none;border:0;padding:4px 0;cursor:pointer}
+.tip{font-size:clamp(17px,1.4vw,21px);line-height:1.4;margin:0}
+.plays{margin:4px 0 0;padding-left:20px;color:var(--soft);display:grid;gap:6px;font-size:15px}
+.mk{font-weight:600;color:var(--acc);font-size:12px;margin-right:4px}
+.seg{display:flex;gap:16px;color:var(--soft);font-size:15px}
+.whohere .who{display:flex;gap:14px;flex-wrap:wrap}
+.who button{display:flex;align-items:center;gap:12px;font:600 18px Inter,sans-serif;color:#fff;background:rgba(255,255,255,.14);border:1px solid var(--edge);border-radius:999px;padding:8px 22px 8px 8px;min-height:60px;cursor:pointer}
+.av{width:44px;height:44px;border-radius:50%;display:grid;place-items:center;background:linear-gradient(135deg,#ffb340,#ff7aa8);font-size:20px}
+.greet{text-align:center;width:min(520px,92vw)}
+.greet h3{font-size:clamp(30px,3vw,44px)!important;font-weight:600}
+.greet p{margin:0;color:var(--soft);font-size:17px}.gstars{color:#ffd36b!important;font-size:22px!important;font-weight:600}
+.gq{background:rgba(255,255,255,.1);border-radius:18px;padding:14px;display:grid;gap:4px}.gq small{color:var(--faint)}.gq b{font-size:20px}
+.lumi{width:120px;height:120px;margin:0 auto;border-radius:50%;background:radial-gradient(circle at 35% 30%,#fff6e0,#ffcf8a 55%,#f3a35c);box-shadow:0 0 50px rgba(255,190,110,.6);display:grid;place-items:center;animation:bob 3s ease-in-out infinite}
+.lface{position:relative;width:60px;height:34px}.lface i{position:absolute;top:4px;width:10px;height:14px;border-radius:50%;background:#3a2a20;animation:blink 4s infinite}.lface i:first-child{left:8px}.lface i:nth-child(2){right:8px}
+.lface b{position:absolute;left:50%;bottom:2px;width:16px;height:8px;margin-left:-8px;border-bottom:3px solid #3a2a20;border-radius:0 0 12px 12px}
+@keyframes bob{50%{transform:translateY(-6px)}}@keyframes blink{0%,94%,100%{transform:scaleY(1)}97%{transform:scaleY(.1)}}
+.tint{position:fixed;inset:0;pointer-events:none;z-index:-1;transition:background 2s}
+body[data-tod=morning] .tint{background:linear-gradient(180deg,rgba(255,200,120,.10),transparent 60%)}
+body[data-tod=evening] .tint{background:linear-gradient(180deg,rgba(255,120,60,.14),rgba(60,20,80,.18))}
+body[data-tod=night] .tint{background:rgba(10,10,40,.35)}
+@media(max-width:900px){.baby{grid-template-columns:minmax(0,1fr)}}
+#greetOv{background:rgba(10,12,30,.45)}
+.left{gap:clamp(18px,2.4vw,36px)}
+.clock{font-size:clamp(64px,8.2vw,150px)}
+.weather{margin-top:10px}
+body:has(.remind:not(.hide)) .phrase{display:none}
+</style>
+</head>
+<body>
+<div class="tint"></div>
+<div class="tv">
+  <div id="realPhotos"></div>
+  <div class="photo on" data-i="0"><svg viewBox="0 0 1600 900" preserveAspectRatio="xMidYMid slice"><defs><linearGradient id="s1" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#2b5f9e"/><stop offset=".55" stop-color="#f2a65a"/><stop offset="1" stop-color="#f7d29a"/></linearGradient></defs><rect width="1600" height="900" fill="url(#s1)"/><circle cx="1180" cy="430" r="70" fill="#fff3d6" opacity=".9"/><path d="M0 560 L220 360 L380 470 L560 250 L760 450 L940 300 L1120 480 L1300 330 L1600 520 V900 H0Z" fill="#3c4a6b"/><path d="M520 300 L560 250 L600 300 L580 295 L560 310 L540 296Z M900 340 L940 300 L980 340 L960 336 L940 350Z" fill="#fff" opacity=".85"/><path d="M0 680 Q400 590 800 660 T1600 620 V900 H0Z" fill="#26324a"/><path d="M0 780 Q500 720 1000 790 T1600 760 V900 H0Z" fill="#161e30"/></svg></div>
+  <div class="photo" data-i="1"><svg viewBox="0 0 1600 900" preserveAspectRatio="xMidYMid slice"><defs><linearGradient id="s2" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#7cc4e8"/><stop offset="1" stop-color="#d9f0f7"/></linearGradient></defs><rect width="1600" height="900" fill="url(#s2)"/><path d="M0 600 Q400 520 800 580 T1600 560 V900 H0Z" fill="#e7c28a"/><path d="M0 560 Q400 500 800 540 T1600 520 V600 H0Z" fill="#2f8fb8"/><path d="M0 700 Q500 640 1000 700 T1600 680 V900 H0Z" fill="#f0d6a6"/><circle cx="300" cy="200" r="60" fill="#fffbe8"/><g fill="#fff" opacity=".8"><ellipse cx="900" cy="180" rx="120" ry="28"/><ellipse cx="1250" cy="260" rx="90" ry="22"/></g></svg></div>
+  <div class="photo" data-i="2"><svg viewBox="0 0 1600 900" preserveAspectRatio="xMidYMid slice"><defs><linearGradient id="s3" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#3d6b4a"/><stop offset="1" stop-color="#a8c98a"/></linearGradient></defs><rect width="1600" height="900" fill="url(#s3)"/><g fill="#1f3d2a"><path d="M200 900 L300 420 L400 900Z"/><path d="M1200 900 L1320 360 L1440 900Z"/><path d="M1380 900 L1460 520 L1540 900Z"/></g><path d="M0 760 Q800 700 1600 760 V900 H0Z" fill="#6f9a52"/><g fill="#ffd56b"><circle cx="600" cy="780" r="8"/><circle cx="680" cy="800" r="6"/><circle cx="900" cy="770" r="7"/><circle cx="1000" cy="805" r="6"/></g></svg></div>
+
+  
+  <div class="wrap view on" id="v-home">
+    <section class="left">
+      <div>
+        <div class="clock" id="clock">--:--</div>
+        <div class="date" id="date"></div>
+        <div class="weather" id="weather"><span data-n="wLoading">Загружаю погоду…</span></div>
+      </div>
+      <div style="display:grid;gap:14px">
+        <div class="hints" id="hints"></div>
+        <div class="glass remind hide" id="remind"><svg class="ic" width="34" height="34" viewBox="0 0 36 36"><rect x="8" y="9" width="20" height="23" rx="6" fill="#ffb340"/><path d="M13 9a5 5 0 0 1 10 0" stroke="#ffb340" stroke-width="2.5" fill="none"/><rect x="12" y="20" width="12" height="7" rx="2" fill="#fff" opacity=".85"/></svg><div><b data-n="remT">Сегодня понедельник</b><span data-n="remS">Соберите вещи в садик: сменка, пижама, запасная одежда</span></div><button id="remindOk" data-n="done">Готово</button></div>
+        <div class="glass phrase"><small data-n="phL">Фраза дня на английском</small><p id="phP"></p><span id="phS"></span></div>
+        <div class="duo">
+          <button class="glass ask" id="askBtn"><span class="t" data-n="ask">Голосовой помощник появится на следующем шаге</span><span class="mic"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.2" stroke-linecap="round"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></svg></span></button>
+          <div class="apps" id="apps"></div>
+        </div>
+      </div>
+    </section>
+    <section class="right">
+      <article class="glass card wide">
+        <h2><span data-n="hSched">Режим дня</span><button class="plus" data-add="schedule" aria-label="+">+</button></h2>
+        <ul class="sched" id="sched"></ul>
+      </article>
+      <article class="glass card">
+        <h2><span data-n="hTasks">Няне на сегодня</span><button class="plus" data-add="task" aria-label="+">+</button></h2>
+        <ul class="tasks" id="tasks"></ul>
+      </article>
+      <article class="glass card">
+        <h2><span data-n="hCal">Календарь</span><button class="plus" data-add="event" aria-label="+">+</button></h2>
+        <div class="ev" id="ev"></div>
+      </article>
+      <article class="glass card wide wear">
+        <h2><span data-n="hWear">Что надеть на улицу</span><span id="wearW"></span></h2>
+        <div class="wear-row" id="wear"></div>
+      </article>
+    </section>
+  </div>
+
+  <section class="pane kids view" id="v-kids">
+    <article class="glass card wide whohere" id="whoHere"></article>
+    <article class="glass card" id="rit0"></article>
+    <article class="glass card" id="rit1"></article>
+    <article class="glass card">
+      <div class="rhead"><div><h3 id="babyName">Леона</h3><small data-n="logSub">Дневник для няни</small></div></div>
+      <div class="logb" id="logb"></div>
+      <ul class="loglist" id="loglist"></ul>
+    </article>
+    <article class="glass card growth" id="growth"></article>
+  </section>
+
+  <section class="pane baby view" id="v-baby">
+    <article class="glass card bsleep">
+      <div class="rhead"><div><h3 data-n="vBaby">Леона</h3><small id="bAge"></small></div></div>
+      <div id="bSleep"></div>
+    </article>
+    <div class="bcol">
+      <article class="glass card" id="bFood"></article>
+      <article class="glass card" id="bCare"></article>
+    </div>
+    <div class="bcol">
+      <article class="glass card" id="bWeek"></article>
+      <article class="glass card" id="bMiles"></article>
+    </div>
+  </section>
+
+  <section class="pane kitchen view" id="v-kitchen">
+    <article class="glass card">
+      <h2 data-n="hCook">Что приготовить сегодня</h2>
+      <div class="ideas" id="ideas"></div>
+      <p class="ex" data-n="cookEx">«Папе ✓» — без глютена и с низким содержанием жиров.</p>
+    </article>
+    <article class="glass card">
+      <h2><span data-n="hShop">Список покупок</span><span id="shopCount"></span></h2>
+      <form class="addrow" id="addForm"><input id="addIn" autocomplete="off" inputmode="none" data-kb data-np="addPh" placeholder="Добавить…"><button class="btn" data-n="add">Добавить</button></form>
+      <ul class="tasks" id="shop"></ul>
+      <p class="sub" data-n="usual">Обычно покупаем · оранжевые — пора купить</p>
+      <div class="usual" id="usual"></div>
+      <div style="margin-top:16px"><button class="btn ghost" id="magnum" data-n="magnum">Собрать корзину на magnum.kz</button></div>
+    </article>
+  </section>
+
+  <section class="pane view" id="v-photos" style="grid-template-columns:minmax(0,1fr)">
+    <article class="glass card">
+      <h2 data-n="hPhotos">Фото для экрана</h2>
+      <p style="color:var(--soft);margin:0 0 14px" data-n="photoHelp">Выберите фото с телефона, в том числе из Google Фото. На экране появятся только они.</p>
+      <label class="btn" style="display:inline-block"><span data-n="photoAdd">Добавить фото</span><input type="file" id="photoIn" accept="image/*" multiple hidden></label>
+      <div class="pgrid" id="pgrid"></div>
+    </article>
+  </section>
+  <div class="dots" id="dots"></div>
+</div>
+
+<nav class="glass nav" id="nav"><button class="on" data-v="home" data-n="vHome">Главная</button><button data-v="kids" data-n="vKids">Дети</button><button data-v="baby" data-n="vBaby">Леона</button><button data-v="kitchen" data-n="vKitchen">Кухня</button><button data-v="photos" data-n="vPhotos">Фото</button><button data-v="night" data-n="vNight">Ночь</button></nav>
+<div class="glass bar"><button class="on" data-l="ru">RU</button><button data-l="en">EN</button></div>
+<div class="toast" id="toast"></div>
+
+<div class="glass kb" id="kb"><div class="kbprev" id="kbprev"></div><div id="kbrows"></div></div>
+
+<div class="ov" id="nightOv" role="dialog" aria-modal="true">
+  <div class="nightbox">
+    <div class="moon"></div>
+    <div class="nclock" id="nclock"></div>
+    <div class="nrow" id="nsound"></div>
+    <div class="nrow" id="ntimer"></div>
+    <div class="nstatus" id="nstatus"></div>
+    <div class="nrow"><button id="nexit" data-n="nExit">Выйти из ночного режима</button></div>
+  </div>
+  <div class="wake" data-n="wake">Коснитесь, чтобы включить</div>
+</div>
+
+<div class="ov" id="greetOv" role="dialog" aria-modal="true">
+  <div class="glass formp greet" id="greetP"></div>
+</div>
+
+<div class="ov" id="formOv" role="dialog" aria-modal="true">
+  <form class="glass formp" id="formP"></form>
+</div>
+
+<div class="ov open" id="loginOv" role="dialog" aria-modal="true">
+  <form class="glass formp" id="loginF">
+    <h3 data-n="loginT">Семейный экран</h3>
+    <p id="loginMsg" class="sub" style="margin:0"></p>
+    <input type="email" id="lEmail" autocomplete="username" data-kb inputmode="none" placeholder="Email">
+    <input type="password" id="lPass" autocomplete="current-password" data-kb inputmode="none" data-np="passPh" placeholder="Пароль">
+    <button class="btn" data-n="login">Войти</button>
+    <button type="button" class="close" id="signupBtn" data-n="signup">Создать аккаунт</button>
+  </form>
+</div>
+
+<script type="module">
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.4";
+
+const SB_URL = "https://svjlqxkqvvanclemddce.supabase.co";
+const SB_KEY = "sb_publishable_YHELTOfBVYlvmLKTAb99ww_RWTwf6bb";
+const sb = createClient(SB_URL, SB_KEY);
+/* ---------- Леона: контент по возрасту (месяцы) ---------- */
+const AGE = [
+  { from: 6, to: 8,
+    food: [["Пюре из кабачка", "Courgette purée"], ["Брокколи на пару", "Steamed broccoli"], ["Тыква", "Pumpkin"], ["Гречневая каша без молока", "Buckwheat porridge"], ["Яблоко печёное", "Baked apple"], ["Груша", "Pear"], ["Цветная капуста", "Cauliflower"], ["Индейка пюре", "Turkey purée"]],
+    tips: [["Новые продукты — по одному в 3 дня, так проще понять реакцию.", "One new food every 3 days makes reactions easy to spot."], ["Сейчас учится сидеть: подушки вокруг и игрушки чуть впереди.", "She's learning to sit: cushions around, toys slightly ahead."], ["Говорите, что делаете: «надеваем носочек». Так растёт словарь.", "Narrate what you do: “socks on”. It builds vocabulary."], ["Прятки с платочком учат: предмет не исчезает, когда его не видно.", "Peekaboo teaches that things still exist when hidden."]],
+    play: [["Ку-ку с платочком", "Peekaboo with a scarf"], ["Перекладывать кубик из руки в руку", "Pass a block hand to hand"], ["Погремушки разных звуков", "Rattles with different sounds"], ["Книжки с крупными картинками", "Big-picture board books"], ["Зеркало: «кто там?»", "Mirror: “who's that?”"]] },
+  { from: 8, to: 10,
+    food: [["Кусочки банана", "Banana pieces"], ["Омлет из желтка", "Egg-yolk omelette"], ["Тефтельки из индейки", "Turkey meatballs"], ["Морковь на пару палочками", "Steamed carrot sticks"], ["Творожок", "Cottage cheese"], ["Овсянка с яблоком", "Oatmeal with apple"], ["Рыба: треска на пару", "Steamed cod"], ["Авокадо", "Avocado"]],
+    tips: [["Пора пробовать мягкие кусочки — она учится жевать.", "Time for soft pieces — she's learning to chew."], ["Ползает и встаёт у опоры: уберите провода и закройте розетки.", "Crawling and pulling up: hide cables, cover sockets."], ["Может бояться чужих — это нормальный этап.", "Stranger anxiety is a normal stage now."], ["Показывайте пальцем и называйте: «это кошка».", "Point and name: “that's a cat”."]],
+    play: [["Достать игрушку из коробки", "Take a toy out of a box"], ["Стучать ложкой по кастрюле", "Bang a spoon on a pot"], ["Катать мячик туда-обратно", "Roll a ball back and forth"], ["Пальчиковая игра «Сорока»", "Finger rhyme games"], ["Ползать по туннелю из подушек", "Crawl through a pillow tunnel"]] },
+  { from: 10, to: 12,
+    food: [["Сырники без муки (рисовая мука)", "Rice-flour cottage pancakes"], ["Суп-пюре с фрикадельками", "Soup with tiny meatballs"], ["Кусочки груши и персика", "Pear and peach pieces"], ["Гречка с тефтелькой", "Buckwheat with a meatball"], ["Рыбные котлетки на пару", "Steamed fish patties"], ["Тушёные овощи кубиками", "Stewed veggie cubes"], ["Йогурт без сахара", "Plain yogurt"], ["Рисовая каша с тыквой", "Rice porridge with pumpkin"]],
+    tips: [["Даёт ложку в руку — пусть пробует есть сама, даже если грязно.", "Let her hold a spoon and try, mess is fine."], ["Скоро первые шаги: ходит вдоль дивана — держите путь свободным.", "First steps soon: keep the sofa path clear."], ["Понимает «нельзя» и «дай»: хвалите, когда отдаёт игрушку.", "Understands “no” and “give”: praise her when she shares."], ["Повторяйте её «ба-ба», «ма-ма» и добавляйте слово.", "Echo her babble and add a word."]],
+    play: [["Пирамидка из 3 колец", "3-ring stacking toy"], ["Сортер: положить в дырку", "Shape sorter: drop it in"], ["Ладушки и «до свидания» рукой", "Pat-a-cake and waving bye"], ["Ходить, держась за ручки", "Walk holding hands"], ["Бумага: мять и шуршать", "Scrunch crinkly paper"]] },
+  { from: 12, to: 18,
+    food: [["Паровые котлеты с пюре", "Steamed patties with mash"], ["Запеканка из творога", "Cottage-cheese bake"], ["Плов с курицей мягкий", "Soft chicken pilaf"], ["Омлет с овощами", "Veggie omelette"], ["Ягоды кусочками", "Berry pieces"], ["Овощное рагу", "Vegetable stew"], ["Рыба запечённая", "Baked fish"], ["Гречка с подливой", "Buckwheat with gravy"]],
+    tips: [["Может есть почти то же, что семья, но без соли и сахара.", "She can eat family food, without salt or sugar."], ["Учится ходить: босиком дома полезнее всего.", "Learning to walk: barefoot at home is best."], ["Слов пока мало, но понимает много — давайте выбор из двух.", "Few words but lots of understanding — offer two choices."], ["Помогает «по дому»: дайте ей тряпочку протереть стол.", "Let her “help”: give her a cloth to wipe the table."]],
+    play: [["Строить башню из кубиков", "Build a block tower"], ["Каракули мелками", "Scribble with crayons"], ["Прятать игрушку под стаканчик", "Hide a toy under a cup"], ["Танцы под музыку", "Dance to music"], ["Показать: где нос, где ушки", "Point to nose and ears"]] },
+  { from: 18, to: 36,
+    food: [["Суп с фрикадельками", "Meatball soup"], ["Сырники", "Cottage pancakes"], ["Тушёная курица с рисом", "Stewed chicken with rice"], ["Овощи на пару с соусом", "Steamed veggies with dip"], ["Фрукты кусочками", "Fruit pieces"], ["Запечённая рыба", "Baked fish"]],
+    tips: [["Говорите короткими фразами и ждите её ответа.", "Use short phrases and wait for her reply."], ["Хочет делать сама — дайте время.", "She wants to do it herself — give her time."], ["Ритуал перед сном помогает засыпать спокойнее.", "A bedtime routine helps her settle."]],
+    play: [["Лепка из теста", "Play dough"], ["Мыльные пузыри", "Bubbles"], ["Пазлы из 2–4 частей", "2–4 piece puzzles"], ["Кормить куклу", "Feed a doll"]] }
+];
+const ageMonths = (birth, now = new Date()) => { if (!birth) return null; const b = new Date(birth); let m = (now.getFullYear() - b.getFullYear()) * 12 + now.getMonth() - b.getMonth(); if (now.getDate() < b.getDate()) m--; return Math.max(0, m); };
+const ageWeeks = (birth, now = new Date()) => birth ? Math.floor((now - new Date(birth)) / 6048e5) : 0;
+function ageContent(m) { return AGE.find(a => m >= a.from && m < a.to) || (m < 6 ? AGE[0] : AGE[AGE.length - 1]); }
+/* подборка по дням / неделям, стабильная в течение дня */
+function pick(arr, seed, n) { const out = []; for (let i = 0; i < Math.min(n, arr.length); i++) out.push(arr[(seed + i) % arr.length]); return out; }
+
+/* сон: интервалы за 24 часа из записей sleep/wake */
+function sleepIntervals(ent, now = Date.now()) {
+  const ev = ent.filter(x => x.kind === "sleep" || x.kind === "wake").map(x => ({ k: x.kind, t: +new Date(x.at) })).sort((a, b) => a.t - b.t);
+  const out = []; let s = null;
+  ev.forEach(e => { if (e.k === "sleep") { if (s == null) s = e.t; } else if (s != null) { out.push([s, e.t]); s = null; } });
+  const open = s != null; if (open) out.push([s, now]);
+  return { out, sleeping: open, last: ev[ev.length - 1] || null };
+}
+
+
+const $ = id => document.getElementById(id);
+const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+const pad = n => String(n).padStart(2, "0");
+const hm = d => pad(d.getHours()) + ":" + pad(d.getMinutes());
+const todayISO = () => { const d = new Date(); return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`; };
+const store = { get(k, d) { try { const v = JSON.parse(localStorage.getItem(k)); return v == null ? d : v } catch (e) { return d } }, set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)) } catch (e) {} } };
+
+/* ---------- тексты ---------- */
+const T = {
+  ru: {
+    vHome: "Главная", vKids: "Дети", vKitchen: "Кухня", vPhotos: "Фото", vNight: "Ночь",
+    wLoading: "Загружаю погоду…", remT: "Сегодня понедельник", remS: "Соберите вещи в садик: сменка, пижама, запасная одежда", done: "Готово",
+    phL: "Фраза дня на английском", ask: "Спросить Луми",
+    hSched: "Режим дня", hTasks: "Няне на сегодня", hCal: "Календарь", hWear: "Что надеть на улицу",
+    logSub: "Дневник для няни", hCook: "Что приготовить сегодня", cookEx: "«Папе ✓» — без глютена и с низким содержанием жиров.",
+    hShop: "Список покупок", addPh: "Добавить…", add: "Добавить", usual: "Обычно покупаем · оранжевые — пора купить", magnum: "Собрать корзину на magnum.kz",
+    hPhotos: "Фото для экрана", photoHelp: "Выберите фото с телефона, в том числе из Google Фото. На экране появятся только они.", photoAdd: "Добавить фото",
+    nExit: "Выйти из ночного режима", wake: "Коснитесь, чтобы включить", pinTitle: "Введите PIN", cancel: "Отмена",
+    loginT: "Семейный экран", passPh: "Пароль", login: "Войти", signup: "Создать аккаунт", signupDone: "Аккаунт создан. Напишите Claude, чтобы открыть доступ.",
+    noAccess: "Вход выполнен, но доступа пока нет. Напишите Claude, чтобы добавить этот аккаунт в семью.", loginErr: "Не получилось войти: ",
+    days: ["воскресенье", "понедельник", "вторник", "среда", "четверг", "пятница", "суббота"], mon: ["января", "февраля", "марта", "апреля", "мая", "июня", "июля", "августа", "сентября", "октября", "ноября", "декабря"],
+    now: "сейчас", emptySched: "Пока пусто. Нажмите +, чтобы добавить", emptyTasks: "Задач нет", emptyEv: "Ближайших событий нет", today: "сегодня", allDay: "весь день",
+    morning: "Утро", evening: "Вечер", hooray: "Ура! Всё сделано!",
+    steps: { morning: [["tooth", "Зубки"], ["potty", "Горшок"], ["dress", "Одеться"], ["bed", "Кроватка"]], evening: [["toys", "Игрушки"], ["bath", "Купание"], ["pjs", "Пижама"], ["book", "Сказка"]] },
+    log: { feed: "Покормили", sleep: "Уснула", wake: "Проснулась", diaper: "Подгузник" }, ago: "назад", min: "мин", h: "ч", never: "сегодня ещё не было", empty: "Сегодня записей нет",
+    growth: "Рост и вес", locked: "Скрыто. Откроется по PIN.", open: "Открыть", lock: "Закрыть", cm: "см", kg: "кг", noGrowth: "Пока нет замеров", addMeas: "Добавить замер", wrongPin: "Неверный PIN", setPin: "Придумайте PIN для роста и веса", pinSaved: "PIN сохранён",
+    dadOk: "Папе ✓", items: "шт.", magnumToast: "Список готов. Напишите Claude «собери корзину Magnum».",
+    nsound: [["tale", "Сказка"], ["lull", "Колыбельная"], ["noise", "Белый шум"], ["off", "Тишина"]], ntimer: [[15, "15 мин"], [30, "30 мин"], [60, "60 мин"]], nPlay: "играет", nOff: "Тишина", nOut: "экран погаснет через",
+    fSched: "Новый пункт режима", fTask: "Новая задача для няни", fEvent: "Новое событие", fGrowth: "Новый замер", fTime: "Время", fTitle: "Что", fWho: "Для кого", fDate: "Дата и время", fAllDay: "Весь день", fKid: "Кто", fH: "Рост, см", fW: "Вес, кг", save: "Сохранить", del: "Удалить",
+    saved: "Сохранено", err: "Ошибка: ", uploading: "Загружаю фото…", uploaded: "Фото добавлены", soon: "Скоро: голосовой помощник подключим следующим шагом", noApp: "Приложение откроется на телевизоре через Fully Kiosk",
+    wCodes: { 0: "ясно", 1: "в основном ясно", 2: "переменная облачность", 3: "облачно", 45: "туман", 48: "туман", 51: "морось", 53: "морось", 55: "морось", 61: "небольшой дождь", 63: "дождь", 65: "сильный дождь", 66: "ледяной дождь", 67: "ледяной дождь", 71: "небольшой снег", 73: "снег", 75: "сильный снег", 77: "снежная крупа", 80: "ливень", 81: "ливень", 82: "сильный ливень", 85: "снегопад", 86: "сильный снегопад", 95: "гроза", 96: "гроза с градом", 99: "гроза с градом" },
+    almaty: "Алматы", later: "позже осадки"
+  },
+  en: {
+    vHome: "Home", vKids: "Kids", vKitchen: "Kitchen", vPhotos: "Photos", vNight: "Night",
+    wLoading: "Loading weather…", remT: "It's Monday", remS: "Pack the kindergarten bag: indoor shoes, pyjamas, spare clothes", done: "Done",
+    phL: "Phrase of the day in Russian", ask: "Ask Lumi",
+    hSched: "Today's routine", hTasks: "Nanny's to-do", hCal: "Calendar", hWear: "What to wear outside",
+    logSub: "Log for the nanny", hCook: "What to cook today", cookEx: "“Dad ✓” = gluten-free and low in fat.",
+    hShop: "Shopping list", addPh: "Add…", add: "Add", usual: "Usually bought · orange = time to buy", magnum: "Build a magnum.kz cart",
+    hPhotos: "Photos for the screen", photoHelp: "Pick photos from your phone, Google Photos included. Only these appear on the screen.", photoAdd: "Add photos",
+    nExit: "Leave night mode", wake: "Tap to wake", pinTitle: "Enter PIN", cancel: "Cancel",
+    loginT: "Family screen", passPh: "Password", login: "Sign in", signup: "Create account", signupDone: "Account created. Ask Claude to grant access.",
+    noAccess: "Signed in, but no access yet. Ask Claude to add this account to the family.", loginErr: "Couldn't sign in: ",
+    days: ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"], mon: ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"],
+    now: "now", emptySched: "Empty for now. Tap + to add", emptyTasks: "No tasks", emptyEv: "No upcoming events", today: "today", allDay: "all day",
+    morning: "Morning", evening: "Evening", hooray: "Hooray! All done!",
+    steps: { morning: [["tooth", "Teeth"], ["potty", "Potty"], ["dress", "Get dressed"], ["bed", "Make bed"]], evening: [["toys", "Toys away"], ["bath", "Bath"], ["pjs", "Pyjamas"], ["book", "Story"]] },
+    log: { feed: "Fed", sleep: "Fell asleep", wake: "Woke up", diaper: "Nappy" }, ago: "ago", min: "min", h: "h", never: "not yet today", empty: "No entries today",
+    growth: "Height and weight", locked: "Hidden. Opens with a PIN.", open: "Open", lock: "Lock", cm: "cm", kg: "kg", noGrowth: "No measurements yet", addMeas: "Add measurement", wrongPin: "Wrong PIN", setPin: "Choose a PIN for height and weight", pinSaved: "PIN saved",
+    dadOk: "Dad ✓", items: "items", magnumToast: "List ready. Ask Claude to “build the Magnum cart”.",
+    nsound: [["tale", "Story"], ["lull", "Lullaby"], ["noise", "White noise"], ["off", "Silence"]], ntimer: [[15, "15 min"], [30, "30 min"], [60, "60 min"]], nPlay: "playing", nOff: "Silence", nOut: "screen goes off in",
+    fSched: "New routine item", fTask: "New task for the nanny", fEvent: "New event", fGrowth: "New measurement", fTime: "Time", fTitle: "What", fWho: "For whom", fDate: "Date and time", fAllDay: "All day", fKid: "Who", fH: "Height, cm", fW: "Weight, kg", save: "Save", del: "Delete",
+    saved: "Saved", err: "Error: ", uploading: "Uploading photos…", uploaded: "Photos added", soon: "Coming soon: the voice assistant is the next step", noApp: "Apps open on the TV through Fully Kiosk",
+    wCodes: { 0: "clear", 1: "mostly clear", 2: "partly cloudy", 3: "cloudy", 45: "fog", 48: "fog", 51: "drizzle", 53: "drizzle", 55: "drizzle", 61: "light rain", 63: "rain", 65: "heavy rain", 66: "freezing rain", 67: "freezing rain", 71: "light snow", 73: "snow", 75: "heavy snow", 77: "snow grains", 80: "showers", 81: "showers", 82: "heavy showers", 85: "snow showers", 86: "heavy snow showers", 95: "thunderstorm", 96: "thunderstorm with hail", 99: "thunderstorm with hail" },
+    almaty: "Almaty", later: "precipitation later"
+  }
+};
+let lang = store.get("fs-lang", "ru");
+const L = () => T[lang];
+
+/* ---------- состояние ---------- */
+const S = { me: null, role: null, schedule: [], tasks: [], events: [], kids: [], ritual: [], baby: [], growth: [], shopping: [], usual: [], recipes: [], photos: [], milestones: [], weather: null };
+const view = { growthOpen: false };
+
+/* ---------- утилиты ---------- */
+function toast(msg) { const t = $("toast"); t.textContent = msg; t.classList.add("show"); clearTimeout(t._h); t._h = setTimeout(() => t.classList.remove("show"), 2800); }
+let AC = null;
+function chime(notes) { try { AC = AC || new (window.AudioContext || window.webkitAudioContext)(); const t = AC.currentTime; notes.forEach((f, i) => { const o = AC.createOscillator(), g = AC.createGain(); o.type = "sine"; o.frequency.value = f; g.gain.setValueAtTime(0, t + i * .12); g.gain.linearRampToValueAtTime(.18, t + i * .12 + .02); g.gain.exponentialRampToValueAtTime(.001, t + i * .12 + .5); o.connect(g).connect(AC.destination); o.start(t + i * .12); o.stop(t + i * .12 + .55) }) } catch (e) {} }
+async function q(p) { const { data, error } = await p; if (error) { console.error(error); toast(L().err + error.message); throw error; } return data; }
+
+const IC = {"tooth": "<path d=\"M18 9c-6 0-9 5-9 11 0 8 4 10 5 18 1 6 3 10 5 10 3 0 3-11 9-11s6 11 9 11c2 0 4-4 5-10 1-8 5-10 5-18 0-6-3-11-9-11-4 0-6 2-10 2s-6-2-10-2z\" fill=\"#fff\"/>", "potty": "<path d=\"M10 22c0 14 6 22 18 22s18-8 18-22z\" fill=\"#7ad7ff\"/><ellipse cx=\"28\" cy=\"22\" rx=\"18\" ry=\"6\" fill=\"#bfeaff\"/><rect x=\"17\" y=\"44\" width=\"22\" height=\"6\" rx=\"3\" fill=\"#7ad7ff\"/>", "dress": "<path d=\"M20 7l8 4 8-4 9 8-5 8-3-2v27H19V21l-3 2-5-8z\" fill=\"#ff7aa8\"/><path d=\"M19 30h18\" stroke=\"#fff\" stroke-width=\"2\" opacity=\".6\"/>", "bed": "<rect x=\"5\" y=\"27\" width=\"46\" height=\"13\" rx=\"3\" fill=\"#c58bff\"/><rect x=\"8\" y=\"18\" width=\"15\" height=\"11\" rx=\"5\" fill=\"#fff\"/><path d=\"M7 40v8M49 40v8\" stroke=\"#c58bff\" stroke-width=\"4\" stroke-linecap=\"round\"/>", "toys": "<rect x=\"7\" y=\"30\" width=\"19\" height=\"19\" rx=\"4\" fill=\"#ffb340\"/><rect x=\"30\" y=\"30\" width=\"19\" height=\"19\" rx=\"4\" fill=\"#7ad7ff\"/><rect x=\"18\" y=\"9\" width=\"19\" height=\"19\" rx=\"4\" fill=\"#ff7aa8\"/>", "bath": "<path d=\"M5 28h46v5c0 8-6 13-14 13H19C11 46 5 41 5 33z\" fill=\"#7ad7ff\"/><circle cx=\"20\" cy=\"17\" r=\"5\" fill=\"#fff\" opacity=\".85\"/><circle cx=\"32\" cy=\"12\" r=\"4\" fill=\"#fff\" opacity=\".6\"/><circle cx=\"40\" cy=\"21\" r=\"3\" fill=\"#fff\" opacity=\".7\"/>", "pjs": "<path d=\"M20 7l8 4 8-4 9 8-5 8-3-2v27H19V21l-3 2-5-8z\" fill=\"#9fb4ff\"/><circle cx=\"24\" cy=\"30\" r=\"2\" fill=\"#fff\"/><circle cx=\"32\" cy=\"37\" r=\"2\" fill=\"#fff\"/><circle cx=\"26\" cy=\"42\" r=\"2\" fill=\"#fff\"/>", "book": "<path d=\"M7 12h18c2 0 3 2 3 2v32s-1-2-3-2H7z\" fill=\"#ffe7a8\"/><path d=\"M49 12H31c-2 0-3 2-3 2v32s1-2 3-2h18z\" fill=\"#fff\"/>"};
+const svg = k => `<svg viewBox="0 0 56 56" aria-hidden="true">${IC[k]}</svg>`;
+
+/* ---------- загрузка данных ---------- */
+async function loadAll() {
+  const start = new Date(); start.setHours(0, 0, 0, 0);
+  const week = new Date(start); week.setDate(week.getDate() + 14);
+  const since = new Date(start); since.setDate(since.getDate() - 1); since.setHours(12);
+  const [schedule, tasks, events, kids, ritual, baby, growth, shopping, usual, recipes, photos, milestones] = await Promise.all([
+    q(sb.from("schedule").select("*").order("at")),
+    q(sb.from("tasks").select("*").eq("day", todayISO()).order("id")),
+    q(sb.from("events").select("*").gte("starts_at", start.toISOString()).lt("starts_at", week.toISOString()).order("starts_at")),
+    q(sb.from("kids").select("*").order("sort")),
+    q(sb.from("ritual_done").select("*").eq("day", todayISO())),
+    q(sb.from("baby_log").select("*").gte("at", since.toISOString()).order("at")),
+    q(sb.from("growth").select("*").order("measured_on")),
+    q(sb.from("shopping").select("*").or(`done.eq.false,created_at.gte.${start.toISOString()}`).order("id")),
+    q(sb.from("usual_items").select("*").order("text")),
+    q(sb.from("recipes").select("*").order("id")),
+    q(sb.from("photos").select("*").order("added_at", { ascending: false }).limit(60)),
+    q(sb.from("milestones").select("*").order("day"))
+  ]);
+  Object.assign(S, { schedule, tasks, events, kids, ritual, baby, growth, shopping, usual, recipes, photos, milestones });
+  renderAll();
+  loadPhotoUrls();
+}
+
+/* ---------- главная ---------- */
+function renderClock() {
+  const l = L(), d = new Date();
+  $("clock").textContent = hm(d);
+  $("date").textContent = lang === "ru" ? `${l.days[d.getDay()]}, ${d.getDate()} ${l.mon[d.getMonth()]}` : `${l.days[d.getDay()]}, ${l.mon[d.getMonth()]} ${d.getDate()}`;
+  $("remind").classList.toggle("hide", !(d.getDay() === 1 && store.get("fs-remind", "") !== todayISO()));
+}
+function renderSched() {
+  const l = L(), d = new Date(), n = d.getHours() * 60 + d.getMinutes();
+  const items = S.schedule.map(s => ({ ...s, m: +s.at.slice(0, 2) * 60 + +s.at.slice(3, 5) }));
+  if (!items.length) { $("sched").innerHTML = `<li>${l.emptySched}</li>`; return; }
+  let cur = -1; items.forEach((s, i) => { if (s.m <= n) cur = i; });
+  const start = Math.max(0, Math.min(cur - 1, items.length - 5));
+  $("sched").innerHTML = items.slice(start, start + 5).map((s, k) => { const i = start + k; const c = i < cur ? "done" : i === cur ? "now" : ""; const title = lang === "en" && s.title_en ? s.title_en : s.title_ru; return `<li class="${c}"><time>${s.at.slice(0, 5)}</time><span>${esc(title)}</span><span class="who">${i === cur ? l.now : esc(s.who || "")}</span></li>`; }).join("");
+}
+function renderTasks() {
+  $("tasks").innerHTML = S.tasks.length ? S.tasks.map(t => `<li class="${t.done ? "ok" : ""}"><button data-id="${t.id}"><span class="box">${t.done ? '<svg width="12" height="12" viewBox="0 0 12 12"><path d="M2 6l3 3 5-6" stroke="#fff" stroke-width="2" fill="none"/></svg>' : ""}</span><span>${esc(t.text)}</span></button></li>`).join("") : `<li style="color:var(--faint)">${L().emptyTasks}</li>`;
+}
+function renderEvents() {
+  const l = L(), cols = ["#ffb340", "#7ad7ff", "#c58bff", "#ff7aa8"];
+  $("ev").innerHTML = S.events.length ? S.events.slice(0, 4).map((e, i) => { const d = new Date(e.starts_at); const isToday = d.toDateString() === new Date().toDateString(); const when = (isToday ? l.today : `${d.getDate()} ${l.mon[d.getMonth()].slice(0, 3)}`) + ", " + (e.all_day ? l.allDay : hm(d)); return `<div><i style="background:${esc(e.color || cols[i % 4])}"></i><span>${esc(e.title)}<small>${when}</small></span></div>`; }).join("") : `<div style="color:var(--faint)">${l.emptyEv}</div>`;
+}
+const PHRASES = [["Let's put on our coats!", "Давайте наденем куртки!"], ["Time to brush your teeth!", "Пора чистить зубки!"], ["Let's tidy up the toys!", "Давай уберём игрушки!"], ["What colour is it?", "Какого это цвета?"], ["Good job!", "Молодец!"], ["Let's wash our hands.", "Давай помоем руки."], ["Sweet dreams!", "Сладких снов!"]];
+function renderPhrase() { const p = PHRASES[Math.floor(Date.now() / 864e5) % PHRASES.length]; $("phP").textContent = lang === "ru" ? `“${p[0]}”` : `«${p[1]}»`; $("phS").textContent = lang === "ru" ? p[1] : p[0]; }
+
+/* погода Open-Meteo, Алматы */
+async function loadWeather() {
+  try {
+    const r = await fetch("https://api.open-meteo.com/v1/forecast?latitude=43.24&longitude=76.95&current=temperature_2m,weather_code,apparent_temperature&hourly=precipitation_probability,weather_code&forecast_days=1&timezone=Asia%2FAlmaty");
+    const j = await r.json();
+    const hrs = new Date().getHours();
+    const later = (j.hourly.precipitation_probability || []).slice(hrs + 1).some(p => p >= 50);
+    const snowLater = (j.hourly.weather_code || []).slice(hrs + 1).some(c => (c >= 71 && c <= 77) || c === 85 || c === 86);
+    S.weather = { t: Math.round(j.current.temperature_2m), feels: Math.round(j.current.apparent_temperature), code: j.current.weather_code, later, snowLater };
+  } catch (e) { S.weather = null; }
+  renderWeather();
+}
+function renderWeather() {
+  const l = L(), w = S.weather;
+  if (!w) { $("weather").innerHTML = `<span>${l.almaty}</span>`; $("wear").innerHTML = ""; $("wearW").textContent = ""; return; }
+  const desc = l.wCodes[w.code] || "";
+  $("weather").innerHTML = `<svg width="40" height="40" viewBox="0 0 40 40"><circle cx="16" cy="16" r="8" fill="#ffd56b"/><path d="M12 30h18a6 6 0 0 0 0-12 8 8 0 0 0-15 2 5 5 0 0 0-3 10z" fill="#fff" opacity=".95"/></svg><b>${w.t > 0 ? "+" : ""}${w.t}°</b> <span>${l.almaty} · ${desc}${w.later ? ", " + l.later : ""}</span>`;
+  $("wearW").textContent = `${w.t > 0 ? "+" : ""}${w.t}°`;
+  const wet = w.later || (w.code >= 51 && w.code <= 86);
+  const feel = w.feels;
+  let set, tip;
+  if (lang === "ru") {
+    if (feel <= -10) { set = [["jacket", "Тёплый комбинезон"], ["hat", "Шапка + подшлемник"], ["mitt", "Непромокаемые варежки"], ["scarf", "Снуд"], ["boots", "Зимние сапоги"]]; tip = "Очень холодно: термобельё под низ, гулять недолго."; }
+    else if (feel <= 0) { set = [["jacket", "Зимний комбинезон"], ["hat", "Тёплая шапка"], ["mitt", wet ? "Непромокаемые варежки" : "Варежки"], ["scarf", "Снуд"], ["boots", "Зимние ботинки"]]; tip = "Под комбинезон — флиску." + (wet ? " Возьмите запасные варежки." : ""); }
+    else if (feel <= 10) { set = [["jacket", "Демисезонная куртка"], ["hat", "Тонкая шапка"], ["mitt", "Перчатки"], ["scarf", "Снуд"], ["boots", wet ? "Резиновые сапоги" : "Ботинки"]]; tip = "Можно без комбинезона."; }
+    else { set = [["jacket", "Ветровка"], ["hat", "Кепка"], ["boots", wet ? "Резиновые сапоги" : "Кроссовки"]]; tip = "Тепло."; }
+  } else {
+    if (feel <= -10) { set = [["jacket", "Warm snowsuit"], ["hat", "Hat + balaclava"], ["mitt", "Waterproof mittens"], ["scarf", "Snood"], ["boots", "Winter boots"]]; tip = "Very cold: thermals underneath, keep walks short."; }
+    else if (feel <= 0) { set = [["jacket", "Snowsuit"], ["hat", "Warm hat"], ["mitt", wet ? "Waterproof mittens" : "Mittens"], ["scarf", "Snood"], ["boots", "Winter boots"]]; tip = "Fleece under the snowsuit." + (wet ? " Bring spare mittens." : ""); }
+    else if (feel <= 10) { set = [["jacket", "Light jacket"], ["hat", "Thin hat"], ["mitt", "Gloves"], ["scarf", "Snood"], ["boots", wet ? "Wellies" : "Boots"]]; tip = "No snowsuit needed."; }
+    else { set = [["jacket", "Windbreaker"], ["hat", "Cap"], ["boots", wet ? "Wellies" : "Trainers"]]; tip = "Warm."; }
+  }
+  $("wear").innerHTML = set.map(([k, t]) => `<div>${`<svg viewBox="0 0 36 36">${WEAR[k]}</svg>`}${t}</div>`).join("") + `<p class="wear-tip">${tip}</p>`;
+}
+const WEAR = {
+  jacket: '<path d="M12 6l6-3 6 3 6 4-3 6-3-2v19H12V14l-3 2-3-6z" fill="#ffb340"/><path d="M18 3v30" stroke="#fff" stroke-width="1.5" opacity=".7"/>',
+  hat: '<path d="M8 26a10 10 0 0 1 20 0z" fill="#7ad7ff"/><rect x="6" y="25" width="24" height="5" rx="2.5" fill="#fff"/><circle cx="18" cy="10" r="3.5" fill="#fff"/>',
+  mitt: '<path d="M12 30V14a5 5 0 0 1 10 0v4l3-3a2.5 2.5 0 0 1 3.5 3.5L22 25v5z" fill="#ff7aa8"/><rect x="11" y="28" width="12" height="4" rx="2" fill="#fff"/>',
+  scarf: '<path d="M8 12h20v6H8z" fill="#c58bff"/><path d="M20 18h6v13h-6z" fill="#c58bff"/>',
+  boots: '<path d="M9 8h9v16h9a3 3 0 0 1 3 3v3H9z" fill="#8a6a50"/>'
+};
+
+/* приложения: настраиваются в settings.apps */
+let APPS = [["YouTube", "#ff3b30", "YT", "com.google.android.youtube.tv"], ["YouTube Kids", "#ff9500", "Kids", "com.google.android.youtube.tvkids"], ["Музыка", "#af52de", "♪", ""], ["Касса", "#34c759", "₸", ""]];
+function renderApps() { $("apps").innerHTML = APPS.map(([n, c, s], i) => `<button class="app" data-i="${i}"><i style="background:${c}">${esc(s)}</i>${esc(n)}</button>`).join(""); }
+$("apps").addEventListener("click", e => {
+  const b = e.target.closest(".app"); if (!b) return; const a = APPS[+b.dataset.i];
+  if (window.fully && a[3]) { a[3].startsWith("http") ? window.fully.loadUrl(a[3]) : window.fully.startApplication(a[3]); }
+  else if (a[3] && a[3].startsWith("http")) location.href = a[3];
+  else toast(L().noApp);
+});
+
+/* ---------- дети ---------- */
+const mode = () => new Date().getHours() < 14 ? "morning" : "evening";
+function renderRit() {
+  const l = L(), m = mode();
+  const older = S.kids.filter(k => k.name !== "Леона").slice(0, 2);
+  older.forEach((kid, i) => {
+    const done = S.ritual.filter(r => r.kid_id === kid.id && r.mode === m).map(r => r.step);
+    const steps = l.steps[m], all = steps.every((_, j) => done.includes(j));
+    $("rit" + i).innerHTML = `<div class="rhead"><div><h3>${esc(kid.name)}</h3><small>${l[m]}</small></div><span class="stars">★ ${kid.stars}</span></div>
+      <div class="steps">${steps.map((s, j) => `<button class="step ${done.includes(j) ? "ok" : ""}" data-k="${kid.id}" data-j="${j}">${svg(s[0])}${s[1]}</button>`).join("")}</div>
+      <div class="hooray">${all ? l.hooray : ""}</div>`;
+  });
+}
+document.querySelector(".kids").addEventListener("click", async e => {
+  const b = e.target.closest(".step"); if (!b) return;
+  const kid = S.kids.find(k => k.id === +b.dataset.k), j = +b.dataset.j, m = mode();
+  const ex = S.ritual.find(r => r.kid_id === kid.id && r.mode === m && r.step === j);
+  if (ex) {
+    await q(sb.from("ritual_done").delete().eq("id", ex.id));
+    S.ritual = S.ritual.filter(r => r !== ex); kid.stars = Math.max(0, kid.stars - 1);
+  } else {
+    const row = await q(sb.from("ritual_done").insert({ kid_id: kid.id, mode: m, step: j, day: todayISO() }).select().single());
+    S.ritual.push(row); kid.stars++;
+    const cnt = S.ritual.filter(r => r.kid_id === kid.id && r.mode === m).length;
+    chime(cnt === 4 ? [523, 659, 784, 1047] : [784, 1047]);
+  }
+  await q(sb.from("kids").update({ stars: kid.stars }).eq("id", kid.id));
+  renderRit();
+});
+function agoTxt(ts) { const l = L(), d = Math.round((Date.now() - new Date(ts)) / 60000); return d < 60 ? `${d} ${l.min} ${l.ago}` : `${Math.floor(d / 60)} ${l.h} ${d % 60} ${l.min} ${l.ago}`; }
+const baby = () => S.kids.find(k => k.name === "Леона");
+/* ---------- Леона, подсказки, приветствие ---------- */
+Object.assign(T.ru, {
+  vBaby: "Леона", bSleeping: "Спит", bAwake: "Бодрствует", bFellAsleep: "Уснула", bWokeUp: "Проснулась", bSleepToday: "Сон сегодня", bNaps: "снов",
+  bFood: "Еда", bAte: "Поела", bIdeas: "Идеи, чем покормить", bLiked: "Понравилось", bNotLiked: "Не очень", bWhat: "Что ела",
+  bCare: "Здоровье и уход", bTemp: "Температура", bMed: "Лекарство", bBath: "Купание", bWalk: "Прогулка", bMedName: "Что и сколько",
+  bWeek: "Неделя", bTip: "Совет недели", bPlay: "Чем заняться", bMiles: "Вехи и зубки", bAddMile: "Добавить", bMileT: "Что случилось", bKind: "Тип",
+  mk: { tooth: "Зубик", first: "Впервые", other: "Другое" }, bNoMiles: "Пока пусто. Первый зуб, первый шаг…",
+  bBirth: "Укажите дату рождения", fBirth: "Дата рождения", bMon: "мес", bWk: "нед", bOpen: "Открыть",
+  logK: { sleep: "Уснула", wake: "Проснулась", food: "Поела", temp: "Температура", med: "Лекарство", bath: "Купание", walk: "Прогулка", feed: "Покормили", diaper: "Подгузник" },
+  hints: "Подсказки", hMorning: "Утренние ритуалы", hEvening: "Вечер: игрушки → купание → пижама → сказка. Ночной режим в 21:00",
+  hSleepLong: "возможно, пора укладывать", hMedAt: "Лекарство", hTempAt: "Температура", hTomorrow: "Завтра", hBday: "День рождения", hBdayIn: "через", hDays: "дн.", hShopDue: "Пора купить",
+  whoHere: "Луми: кто пришёл?", hello: "привет!", hStars: "звёздочек", hRitLeft: "Осталось в ритуале", hRitDone: "Ритуал сделан, молодец!", hQ: "Вопрос от Луми", hGo: "Начать ритуал", hClose: "Пока!"
+});
+Object.assign(T.en, {
+  vBaby: "Leona", bSleeping: "Asleep", bAwake: "Awake", bFellAsleep: "Fell asleep", bWokeUp: "Woke up", bSleepToday: "Sleep today", bNaps: "sleeps",
+  bFood: "Food", bAte: "Ate", bIdeas: "Ideas for meals", bLiked: "Liked it", bNotLiked: "Not really", bWhat: "What she ate",
+  bCare: "Health and care", bTemp: "Temperature", bMed: "Medicine", bBath: "Bath", bWalk: "Walk", bMedName: "What and how much",
+  bWeek: "This week", bTip: "Tip of the week", bPlay: "What to play", bMiles: "Milestones and teeth", bAddMile: "Add", bMileT: "What happened", bKind: "Type",
+  mk: { tooth: "Tooth", first: "First", other: "Other" }, bNoMiles: "Empty for now. First tooth, first step…",
+  bBirth: "Set the birth date", fBirth: "Birth date", bMon: "mo", bWk: "wk", bOpen: "Open",
+  logK: { sleep: "Fell asleep", wake: "Woke up", food: "Ate", temp: "Temperature", med: "Medicine", bath: "Bath", walk: "Walk", feed: "Fed", diaper: "Nappy" },
+  hints: "Hints", hMorning: "Morning routines", hEvening: "Evening: toys → bath → pyjamas → story. Night mode at 21:00",
+  hSleepLong: "maybe time for a nap", hMedAt: "Medicine", hTempAt: "Temperature", hTomorrow: "Tomorrow", hBday: "Birthday", hBdayIn: "in", hDays: "days", hShopDue: "Time to buy",
+  whoHere: "Lumi: who's here?", hello: "hi!", hStars: "stars", hRitLeft: "Left in the routine", hRitDone: "Routine done, well done!", hQ: "Lumi asks", hGo: "Start routine", hClose: "Bye!"
+});
+const NICK = { "Луна": "Луночка", "Аурика": "Аурика", "Леона": "Леоночка" };
+const KQ = [["Какого цвета сегодня небо?", "What colour is the sky today?"], ["Кого ты обняла сегодня?", "Who did you hug today?"], ["Какое животное ты бы взяла домой?", "Which animal would you take home?"], ["Что тебе сегодня снилось?", "What did you dream about?"], ["Сколько у тебя пальчиков на руке?", "How many fingers on your hand?"], ["Какая у тебя любимая песенка?", "What's your favourite song?"], ["Что ты нарисуешь сегодня?", "What will you draw today?"], ["Как говорит котик по-английски?", "What does a cat say?"]];
+const dayN = () => Math.floor((Date.now() - new Date().getTimezoneOffset() * 6e4) / 864e5);
+const tx = p => lang === "ru" ? p[0] : p[1];
+function dur(ms) { const l = L(), m = Math.max(0, Math.round(ms / 6e4)); return m < 60 ? `${m} ${l.min}` : `${Math.floor(m / 60)} ${l.h} ${pad(m % 60)} ${l.min}`; }
+const bEnt = () => { const k = baby(); return k ? S.baby.filter(x => x.kid_id === k.id) : []; };
+const todayStart = () => { const d = new Date(); d.setHours(0, 0, 0, 0); return +d; };
+function logLine(x) { const l = L(); let t = l.logK[x.kind] || x.kind; if (x.kind === "temp" && x.value) t += ` ${x.value}°`; if (x.note) t += ` · ${esc(x.note)}`; if (x.liked === true) t += ` · ${l.bLiked}`; if (x.liked === false) t += ` · ${l.bNotLiked}`; return t; }
+async function addLog(kind, extra = {}) { const row = await q(sb.from("baby_log").insert({ kid_id: baby().id, kind, ...extra }).select().single()); S.baby.push(row); S.baby.sort((a, b) => a.at.localeCompare(b.at)); chime([659]); renderLog(); renderBaby(); renderHints(); }
+
+/* карточка на вкладке «Дети» */
+function renderLog() {
+  const l = L(), kid = baby(); if (!kid) return;
+  const si = sleepIntervals(bEnt());
+  $("babyName").textContent = kid.name;
+  const st = si.last ? `${si.sleeping ? l.bSleeping : l.bAwake} · ${dur(Date.now() - si.last.t)}` : "—";
+  $("logb").innerHTML = `<button data-k="${si.sleeping ? "wake" : "sleep"}">${si.sleeping ? l.bWokeUp : l.bFellAsleep}<small>${st}</small></button><button data-go="baby">${l.bOpen}<small>${l.bFood} · ${l.bCare} · ${l.bWeek}</small></button>`;
+  const today = bEnt().filter(x => +new Date(x.at) >= todayStart());
+  $("loglist").innerHTML = today.length ? today.slice().reverse().slice(0, 6).map(x => `<li><time>${hm(new Date(x.at))}</time><span>${logLine(x)}</span></li>`).join("") : `<li>${l.empty}</li>`;
+}
+$("logb").addEventListener("click", e => { const b = e.target.closest("button"); if (!b) return; if (b.dataset.go) return setView("baby"); addLog(b.dataset.k); });
+
+/* вкладка «Леона» */
+function ring(ints) {
+  const R = 84, C = 100, t0 = todayStart(), day = 864e5, a = t => (t - t0) / day * 2 * Math.PI - Math.PI / 2;
+  const pt = (ang, r = R) => [C + r * Math.cos(ang), C + r * Math.sin(ang)];
+  const arcs = ints.map(([s, e]) => [Math.max(s, t0), Math.min(e, t0 + day)]).filter(([s, e]) => e > s).map(([s, e]) => { const [x1, y1] = pt(a(s)), [x2, y2] = pt(a(e)); const big = (e - s) > day / 2 ? 1 : 0; return `<path d="M${x1} ${y1}A${R} ${R} 0 ${big} 1 ${x2} ${y2}" stroke="#8fa8ff" stroke-width="16" fill="none" stroke-linecap="round"/>`; }).join("");
+  const [nx, ny] = pt(a(Date.now()), R + 14);
+  const ticks = [0, 6, 12, 18].map(h => { const [x, y] = pt(-Math.PI / 2 + h / 24 * 2 * Math.PI, R - 26); return `<text x="${x}" y="${y + 4}" text-anchor="middle" font-size="11" fill="rgba(255,255,255,.5)">${h}</text>`; }).join("");
+  return `<svg viewBox="0 0 200 200" class="ring"><circle cx="${C}" cy="${C}" r="${R}" stroke="rgba(255,255,255,.12)" stroke-width="16" fill="none"/>${arcs}${ticks}<circle cx="${nx}" cy="${ny}" r="5" fill="#ffb340"/></svg>`;
+}
+function renderBabyLive() {
+  if (!$("bSleep") || !baby()) return;
+  const l = L(), si = sleepIntervals(bEnt()), t0 = todayStart();
+  const total = si.out.reduce((s, [a, b]) => s + Math.max(0, Math.min(b, Date.now()) - Math.max(a, t0)), 0);
+  const naps = si.out.filter(([a, b]) => b > t0).length;
+  $("bSleep").innerHTML = `<div class="bstat ${si.sleeping ? "zz" : ""}"><small>${si.sleeping ? l.bSleeping : l.bAwake}</small><b>${si.last ? dur(Date.now() - si.last.t) : "—"}</b></div>
+    ${ring(si.out)}
+    <p class="bsub">${l.bSleepToday}: <b>${dur(total)}</b> · ${naps} ${l.bNaps}</p>
+    <button class="btn big" data-k="${si.sleeping ? "wake" : "sleep"}">${si.sleeping ? l.bWokeUp : l.bFellAsleep}</button>`;
+}
+function renderBaby() {
+  const kid = baby(); if (!kid || !$("bSleep")) return;
+  const l = L(), m = ageMonths(kid.birth_date ?? null), w = ageWeeks(kid.birth_date);
+  $("bAge").innerHTML = m == null ? `<button class="linkb" data-f="birth">${l.bBirth}</button>` : `<button class="linkb" data-f="birth">${m} ${l.bMon} ${Math.max(0, w - Math.floor(m * 4.35))} ${l.bWk}</button>`;
+  renderBabyLive();
+  const c = ageContent(m ?? 10), seed = dayN();
+  const today = bEnt().filter(x => +new Date(x.at) >= todayStart());
+  const foods = today.filter(x => x.kind === "food");
+  $("bFood").innerHTML = `<h2><span>${l.bFood}</span><button class="btn" data-f="food" style="padding:6px 14px;min-height:36px">${l.bAte}</button></h2>
+    <ul class="loglist">${foods.length ? foods.slice().reverse().map(x => `<li><time>${hm(new Date(x.at))}</time><span>${logLine(x).replace(l.logK.food + " · ", "")}</span><button data-id="${x.id}" aria-label="${l.del}">×</button></li>`).join("") : `<li>${l.empty}</li>`}</ul>
+    <p class="sub">${l.bIdeas}</p><div class="usual">${pick(c.food, seed, 5).map(f => `<button data-food="${esc(tx(f))}">${esc(tx(f))}</button>`).join("")}</div>`;
+  const care = ["temp", "med", "bath", "walk"];
+  const others = today.filter(x => care.includes(x.kind));
+  $("bCare").innerHTML = `<h2>${l.bCare}</h2><div class="logb">${care.map(k => { const last = bEnt().filter(x => x.kind === k).pop(); return `<button data-c="${k}">${l.logK[k]}<small>${last ? hm(new Date(last.at)) + (k === "temp" && last.value ? ` · ${last.value}°` : "") + (k === "med" && last.note ? ` · ${esc(last.note)}` : "") : l.never}</small></button>`; }).join("")}</div>
+    <ul class="loglist">${others.slice().reverse().map(x => `<li><time>${hm(new Date(x.at))}</time><span>${logLine(x)}</span><button data-id="${x.id}" aria-label="${l.del}">×</button></li>`).join("")}</ul>`;
+  const wk = Math.floor(seed / 7);
+  $("bWeek").innerHTML = `<h2>${l.bTip}</h2><p class="tip">${esc(tx(c.tips[wk % c.tips.length]))}</p>
+    <p class="sub">${l.bPlay}</p><ul class="plays">${pick(c.play, seed, 3).map(p => `<li>${esc(tx(p))}</li>`).join("")}</ul>`;
+  const ms = S.milestones.filter(x => x.kid_id === kid.id).slice().reverse();
+  $("bMiles").innerHTML = `<h2><span>${l.bMiles}</span><button class="plus" data-f="mile" aria-label="+">+</button></h2>
+    <ul class="loglist">${ms.length ? ms.map(x => `<li><time>${x.day.slice(8, 10)}.${x.day.slice(5, 7)}</time><span><b class="mk">${l.mk[x.kind]}</b> ${esc(x.title)}</span><button data-mid="${x.id}" aria-label="${l.del}">×</button></li>`).join("") : `<li>${l.bNoMiles}</li>`}</ul>`;
+}
+$("v-baby").addEventListener("click", async e => {
+  const b = e.target.closest("button"); if (!b) return;
+  if (b.dataset.k) return addLog(b.dataset.k);
+  if (b.dataset.f) return openForm(b.dataset.f);
+  if (b.dataset.food) return openForm("food", b.dataset.food);
+  if (b.dataset.c) { const k = b.dataset.c; return (k === "bath" || k === "walk") ? addLog(k) : openForm(k); }
+  if (b.dataset.id) { await q(sb.from("baby_log").delete().eq("id", +b.dataset.id)); S.baby = S.baby.filter(x => x.id !== +b.dataset.id); renderBaby(); renderLog(); }
+  if (b.dataset.mid) { await q(sb.from("milestones").delete().eq("id", +b.dataset.mid)); S.milestones = S.milestones.filter(x => x.id !== +b.dataset.mid); renderBaby(); }
+});
+
+/* подсказки на главной */
+function tod(h = new Date().getHours()) { return h >= 21 || h < 6 ? "night" : h < 11 ? "morning" : h < 17 ? "day" : "evening"; }
+function applyTod() { document.body.dataset.tod = tod(); }
+function renderHints() {
+  if (!$("hints")) return;
+  const l = L(), out = [], now = Date.now(), t = tod();
+  if (t === "morning") { const kids = S.kids.filter(k => k.name !== "Леона").slice(0, 2); out.push(["sun", `${l.hMorning}: ${kids.map(k => `${esc(k.name)} ${S.ritual.filter(r => r.kid_id === k.id && r.mode === "morning").length}/4`).join(" · ")}`, "kids"]); }
+  if (t === "evening") out.push(["moon", l.hEvening, "kids"]);
+  const kid = baby();
+  if (kid) {
+    const si = sleepIntervals(bEnt());
+    if (si.last) { const d = now - si.last.t; const m = ageMonths(kid.birth_date) ?? 10; const lim = m < 9 ? 3 * 36e5 : m < 15 ? 3.5 * 36e5 : 5 * 36e5; out.push(["baby", `${esc(kid.name)}: ${si.sleeping ? l.bSleeping.toLowerCase() : l.bAwake.toLowerCase()} ${dur(d)}${!si.sleeping && d > lim && t !== "night" ? " — " + l.hSleepLong : ""}`, "baby"]); }
+    const med = bEnt().filter(x => x.kind === "med" && now - new Date(x.at) < 8 * 36e5).pop();
+    if (med) out.push(["med", `${l.hMedAt}: ${esc(med.note || "")} ${hm(new Date(med.at))} (${dur(now - new Date(med.at))} ${l.ago})`, "baby"]);
+    const tp = bEnt().filter(x => x.kind === "temp" && now - new Date(x.at) < 12 * 36e5).pop();
+    if (tp && +tp.value >= 37.5) out.push(["med", `${l.hTempAt} ${tp.value}° ${hm(new Date(tp.at))}`, "baby"]);
+  }
+  const tm = new Date(); tm.setDate(tm.getDate() + 1); const tmS = tm.toDateString();
+  S.events.filter(e => new Date(e.starts_at).toDateString() === tmS).slice(0, 1).forEach(e => out.push(["cal", `${l.hTomorrow}: ${esc(e.title)}${e.all_day ? "" : " " + hm(new Date(e.starts_at))}`, "home"]));
+  S.kids.forEach(k => { if (!k.birth_date) return; const b = new Date(k.birth_date), n = new Date(); n.setHours(0, 0, 0, 0); let nx = new Date(n.getFullYear(), b.getMonth(), b.getDate()); if (nx < n) nx.setFullYear(nx.getFullYear() + 1); const dd = Math.round((nx - n) / 864e5); if (dd <= 14) out.push(["cake", `${l.hBday}: ${esc(k.name)} ${dd ? `${l.hBdayIn} ${dd} ${l.hDays}` : "— " + l.today + "!"}`, "kids"]); });
+  const due = S.usual.filter(u => u.every_days && u.last_bought && (now - new Date(u.last_bought)) / 864e5 >= u.every_days);
+  if (due.length) out.push(["cart", `${l.hShopDue}: ${due.slice(0, 3).map(u => esc(u.text)).join(", ")}`, "kitchen"]);
+  const ico = { sun: "#ffb340", moon: "#8fa8ff", baby: "#ff9ec7", med: "#ff6b6b", cal: "#7ad7ff", cake: "#c58bff", cart: "#7be0a4" };
+  const max = $("remind").classList.contains("hide") ? 3 : 2;
+  $("hints").innerHTML = out.slice(0, max).map(([k, s, v]) => `<button class="hint" data-go="${v}"><i style="background:${ico[k]}"></i><span>${s}</span></button>`).join("");
+}
+$("hints").addEventListener("click", e => { const b = e.target.closest("[data-go]"); if (b && b.dataset.go !== "home") setView(b.dataset.go); });
+
+/* приветствие Луми (кнопкой, позже — по лицу с камеры) */
+function renderWho() { const l = L(); $("whoHere").innerHTML = `<h2>${l.whoHere}</h2><div class="who">${S.kids.filter(k => k.name !== "Леона").map(k => `<button data-greet="${k.id}"><span class="av">${esc(k.name[0])}</span>${esc(k.name)}</button>`).join("")}</div>`; }
+function greet(kidId) {
+  const l = L(), kid = S.kids.find(k => k.id === +kidId); if (!kid) return;
+  const m = mode(), done = S.ritual.filter(r => r.kid_id === kid.id && r.mode === m).map(r => r.step);
+  const left = l.steps[m].filter((_, j) => !done.includes(j)).map(s => s[1]);
+  const nick = lang === "ru" ? (NICK[kid.name] || kid.name) : kid.name;
+  $("greetP").innerHTML = `<div class="lumi"><div class="lface"><i></i><i></i><b></b></div></div>
+    <h3>${esc(nick)}, ${l.hello}</h3>
+    <p class="gstars">★ ${kid.stars} ${l.hStars}</p>
+    <p>${left.length ? `${l.hRitLeft}: ${left.join(", ")}` : l.hRitDone}</p>
+    <div class="gq"><small>${l.hQ}</small><b>${esc(tx(KQ[(dayN() + kid.id) % KQ.length]))}</b></div>
+    <div style="display:flex;gap:10px;justify-content:center">${left.length ? `<button class="btn" id="gGo">${l.hGo}</button>` : ""}<button class="btn ghost" id="gClose">${l.hClose}</button></div>`;
+  $("greetOv").classList.add("open"); chime([523, 659, 784]);
+  $("gClose").onclick = () => $("greetOv").classList.remove("open");
+  if ($("gGo")) $("gGo").onclick = () => { $("greetOv").classList.remove("open"); setView("kids"); };
+}
+window.lumiGreet = name => { const k = S.kids.find(x => x.name === name); if (k) greet(k.id); };
+$("whoHere").addEventListener("click", e => { const b = e.target.closest("[data-greet]"); if (b) greet(b.dataset.greet); });
+
+
+function spark(a) { if (a.length < 2) return ""; const W = 200, H = 60, mn = Math.min(...a), mx = Math.max(...a); const p = a.map((v, i) => [i * W / (a.length - 1), H - 6 - (v - mn) / ((mx - mn) || 1) * (H - 12)]); return `<svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="none"><polyline points="${p.map(x => x.join(",")).join(" ")}" fill="none" stroke="#ffb340" stroke-width="3" vector-effect="non-scaling-stroke"/></svg>`; }
+function renderGrowth() {
+  const l = L();
+  $("growth").innerHTML = `<h2><span>${l.growth}</span><button class="btn" id="gadd" style="padding:6px 14px;min-height:36px">${l.addMeas}</button></h2>
+   <div class="grow-rows">${S.kids.map(k => { const g = S.growth.filter(x => x.kid_id === k.id); const last = g[g.length - 1]; return `<div class="gr"><b>${esc(k.name)}</b><p>${last ? `${last.height_cm ?? "—"} ${l.cm} · ${last.weight_kg ?? "—"} ${l.kg} · ${last.measured_on}` : l.noGrowth}</p>${spark(g.filter(x => x.height_cm).map(x => +x.height_cm))}</div>`; }).join("")}</div>`;
+}
+$("growth").addEventListener("click", e => { if (e.target.id === "gadd") openForm("growth"); });
+
+/* ---------- кухня ---------- */
+const DEV = { thermomix: ["Thermomix", ""], kenwood: ["Kenwood Cooking Chef", "k"], other: ["", ""] };
+function renderIdeas() {
+  const l = L();
+  $("ideas").innerHTML = S.recipes.slice(0, 4).map(r => `<div class="idea"><div><h4>${esc(r.title)}</h4><p>${esc(r.note || "")}</p></div><div style="display:grid;gap:6px;justify-items:end">${r.device && DEV[r.device][0] ? `<span class="dev ${DEV[r.device][1]}">${DEV[r.device][0]}${r.minutes ? ` · ${r.minutes} ${l.min}` : ""}</span>` : ""}${r.dad_ok ? `<span class="dev" style="background:rgba(52,199,89,.3)">${l.dadOk}</span>` : ""}</div></div>`).join("");
+}
+function renderShop() {
+  const l = L();
+  $("shop").innerHTML = S.shopping.map(x => `<li class="${x.done ? "ok" : ""}"><button data-id="${x.id}"><span class="box">${x.done ? '<svg width="12" height="12" viewBox="0 0 12 12"><path d="M2 6l3 3 5-6" stroke="#fff" stroke-width="2" fill="none"/></svg>' : ""}</span><span>${esc(x.text)}</span></button></li>`).join("");
+  $("shopCount").textContent = `${S.shopping.filter(x => !x.done).length} ${l.items}`;
+  const now = Date.now();
+  $("usual").innerHTML = S.usual.filter(u => !S.shopping.some(x => !x.done && x.text === u.text)).map(u => { const due = !u.last_bought || (now - new Date(u.last_bought)) / 864e5 >= (u.every_days || 7); return `<button class="${due ? "due" : ""}" data-t="${esc(u.text)}">+ ${esc(u.text)}</button>`; }).join("");
+}
+async function addShop(text) {
+  const row = await q(sb.from("shopping").insert({ text }).select().single()); S.shopping.push(row);
+  if (!S.usual.some(u => u.text === text)) { const u = await q(sb.from("usual_items").upsert({ text }, { onConflict: "text" }).select().single()); S.usual.push(u); }
+  renderShop();
+}
+$("shop").addEventListener("click", async e => {
+  const b = e.target.closest("button"); if (!b) return; const x = S.shopping.find(s => s.id === +b.dataset.id);
+  x.done = !x.done; await q(sb.from("shopping").update({ done: x.done }).eq("id", x.id));
+  if (x.done) { const u = S.usual.find(u => u.text === x.text); if (u) { u.last_bought = todayISO(); await q(sb.from("usual_items").update({ last_bought: u.last_bought }).eq("id", u.id)); } }
+  renderShop();
+});
+$("usual").addEventListener("click", e => { const b = e.target.closest("button"); if (b) addShop(b.dataset.t); });
+$("addForm").addEventListener("submit", e => { e.preventDefault(); let v = $("addIn").value.trim().replace(/^(добавь|add)\s+/i, ""); if (!v) return; v = v[0].toUpperCase() + v.slice(1); $("addIn").value = ""; addShop(v); });
+$("magnum").addEventListener("click", () => toast(L().magnumToast));
+
+/* ---------- фото ---------- */
+async function loadPhotoUrls() {
+  if (!S.photos.length) { $("realPhotos").innerHTML = ""; startSlides(); renderPhotoGrid([]); return; }
+  const { data } = await sb.storage.from("photos").createSignedUrls(S.photos.map(p => p.path), 60 * 60 * 6);
+  const urls = (data || []).filter(x => x.signedUrl).map(x => x.signedUrl);
+  $("realPhotos").innerHTML = urls.map((u, i) => `<div class="photo${i === 0 ? " on" : ""}"><img src="${u}" alt="" style="width:100%;height:100%;object-fit:cover"></div>`).join("");
+  document.querySelectorAll(".photo.demo").forEach(p => p.remove());
+  startSlides(); renderPhotoGrid(urls);
+}
+function renderPhotoGrid(urls) { $("pgrid").innerHTML = urls.map(u => `<img src="${u}" alt="">`).join(""); }
+let slideT = null;
+function startSlides() {
+  clearInterval(slideT);
+  const ph = [...document.querySelectorAll(".photo")]; let p = 0;
+  $("dots").innerHTML = ph.length > 1 ? ph.slice(0, 12).map((_, i) => `<i class="${i === 0 ? "on" : ""}"></i>`).join("") : "";
+  ph.forEach((x, i) => x.classList.toggle("on", i === 0));
+  if (ph.length < 2) return;
+  slideT = setInterval(() => { const dots = [...$("dots").children]; ph[p].classList.remove("on"); dots[p % 12]?.classList.remove("on"); p = (p + 1) % ph.length; ph[p].classList.add("on"); dots[p % 12]?.classList.add("on"); }, 12000);
+}
+async function shrink(file) {
+  const img = await createImageBitmap(file); const max = 2560; const s = Math.min(1, max / Math.max(img.width, img.height));
+  const c = document.createElement("canvas"); c.width = Math.round(img.width * s); c.height = Math.round(img.height * s); c.getContext("2d").drawImage(img, 0, 0, c.width, c.height);
+  return await new Promise(r => c.toBlob(r, "image/jpeg", .86));
+}
+$("photoIn").addEventListener("change", async e => {
+  const files = [...e.target.files]; if (!files.length) return; toast(L().uploading);
+  for (const f of files) {
+    const blob = await shrink(f); const path = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}.jpg`;
+    const { error } = await sb.storage.from("photos").upload(path, blob, { contentType: "image/jpeg" }); if (error) { toast(L().err + error.message); continue; }
+    const row = await q(sb.from("photos").insert({ path, taken_at: f.lastModified ? new Date(f.lastModified).toISOString() : null }).select().single()); S.photos.unshift(row);
+  }
+  e.target.value = ""; toast(L().uploaded); loadPhotoUrls();
+});
+
+/* ---------- формы добавления ---------- */
+function openForm(kind, pre = "") {
+  const l = L(); const f = $("formP"); f.dataset.kind = kind;
+  const field = (id, label, type = "text", extra = "") => `<label class="fl">${label}<input id="${id}" type="${type}" ${type === "text" ? 'data-kb inputmode="none"' : ""} ${extra}></label>`;
+  const kidSel = `<label class="fl">${l.fKid}<select id="fKid">${S.kids.map(k => `<option value="${k.id}">${esc(k.name)}</option>`).join("")}</select></label>`;
+  const body = {
+    schedule: `<h3>${l.fSched}</h3>${field("fTime", l.fTime, "time", "required")}${field("fTitle", l.fTitle, "text", "required")}${field("fWho", l.fWho)}`,
+    task: `<h3>${l.fTask}</h3>${field("fTitle", l.fTitle, "text", "required")}`,
+    event: `<h3>${l.fEvent}</h3>${field("fTitle", l.fTitle, "text", "required")}${field("fDate", l.fDate, "datetime-local", "required")}<label class="fl row"><input id="fAll" type="checkbox"> ${l.fAllDay}</label>`,
+    food: `<h3>${l.bAte}</h3>${field("fTitle", l.bWhat, "text", `required value="${esc(pre)}"`)}<div class="seg"><label><input type="radio" name="fLike" value="1" checked> ${l.bLiked}</label><label><input type="radio" name="fLike" value="0"> ${l.bNotLiked}</label></div>`,
+    temp: `<h3>${l.bTemp}</h3>${field("fVal", "°C", "number", 'required step="0.1" min="34" max="42" value="36.6" inputmode="decimal"')}`,
+    med: `<h3>${l.bMed}</h3>${field("fTitle", l.bMedName, "text", "required")}`,
+    mile: `<h3>${l.bMiles}</h3>${field("fTitle", l.bMileT, "text", "required")}${field("fDate", l.fDate, "date", `required value="${todayISO()}"`)}<label class="fl">${l.bKind}<select id="fKind">${Object.entries(l.mk).map(([k, t]) => `<option value="${k}">${t}</option>`).join("")}</select></label>`,
+    birth: `<h3>${l.fBirth}</h3>${kidSel}${field("fDate", l.fBirth, "date", "required")}`,
+    growth: `<h3>${l.fGrowth}</h3>${kidSel}${field("fDate", l.fDate, "date", `required value="${todayISO()}"`)}${field("fH", l.fH, "number", 'step="0.1" inputmode="decimal"')}${field("fW", l.fW, "number", 'step="0.01" inputmode="decimal"')}`
+  }[kind];
+  f.innerHTML = body + `<div style="display:flex;gap:10px;justify-content:flex-end"><button type="button" class="btn ghost" id="fCancel">${l.cancel}</button><button class="btn">${l.save}</button></div>`;
+  $("formOv").classList.add("open");
+  $("fCancel").onclick = () => $("formOv").classList.remove("open");
+}
+document.querySelector(".right").addEventListener("click", e => { const b = e.target.closest("[data-add]"); if (b) openForm(b.dataset.add); });
+$("formP").addEventListener("submit", async e => {
+  e.preventDefault(); const kind = e.target.dataset.kind; const v = id => $(id)?.value?.trim();
+  if (kind === "schedule") { const row = await q(sb.from("schedule").insert({ at: v("fTime"), title_ru: v("fTitle"), who: v("fWho") || null }).select().single()); S.schedule.push(row); S.schedule.sort((a, b) => a.at.localeCompare(b.at)); renderSched(); }
+  if (kind === "task") { const row = await q(sb.from("tasks").insert({ text: v("fTitle") }).select().single()); S.tasks.push(row); renderTasks(); }
+  if (kind === "event") { const row = await q(sb.from("events").insert({ title: v("fTitle"), starts_at: new Date(v("fDate")).toISOString(), all_day: $("fAll").checked }).select().single()); S.events.push(row); S.events.sort((a, b) => a.starts_at.localeCompare(b.starts_at)); renderEvents(); }
+  if (kind === "growth") { const row = await q(sb.from("growth").insert({ kid_id: +v("fKid"), measured_on: v("fDate"), height_cm: v("fH") || null, weight_kg: v("fW") || null }).select().single()); S.growth.push(row); S.growth.sort((a, b) => a.measured_on.localeCompare(b.measured_on)); renderGrowth(); }
+  if (kind === "food") { $("formOv").classList.remove("open"); await addLog("food", { note: v("fTitle"), liked: document.querySelector("[name=fLike]:checked")?.value === "1" }); }
+  if (kind === "temp") { $("formOv").classList.remove("open"); await addLog("temp", { value: +v("fVal") }); }
+  if (kind === "med") { $("formOv").classList.remove("open"); await addLog("med", { note: v("fTitle") }); }
+  if (kind === "mile") { const row = await q(sb.from("milestones").insert({ kid_id: baby().id, title: v("fTitle"), day: v("fDate"), kind: v("fKind") }).select().single()); S.milestones.push(row); S.milestones.sort((a, b) => a.day.localeCompare(b.day)); renderBaby(); }
+  if (kind === "birth") { const k = S.kids.find(x => x.id === +v("fKid")); await q(sb.from("kids").update({ birth_date: v("fDate") }).eq("id", k.id)); k.birth_date = v("fDate"); renderBaby(); renderHints(); }
+  $("formOv").classList.remove("open"); toast(L().saved);
+});
+$("tasks").addEventListener("click", async e => { const b = e.target.closest("button"); if (!b) return; const t = S.tasks.find(x => x.id === +b.dataset.id); t.done = !t.done; await q(sb.from("tasks").update({ done: t.done }).eq("id", t.id)); renderTasks(); });
+$("remindOk").addEventListener("click", () => { store.set("fs-remind", todayISO()); renderClock(); renderHints(); });
+$("askBtn").addEventListener("click", () => toast(L().soon));
+
+/* ---------- ночь ---------- */
+let snd = "off", tEnd = 0, tH = null;
+function renderNight() { const l = L(); $("nsound").innerHTML = l.nsound.map(([k, t]) => `<button class="${snd === k ? "on" : ""}" data-s="${k}">${t}</button>`).join(""); $("ntimer").innerHTML = l.ntimer.map(([m, t]) => `<button data-m="${m}">${t}</button>`).join(""); nStatus(); }
+function nStatus() { const l = L(); const s = snd === "off" ? l.nOff : `${l.nsound.find(x => x[0] === snd)[1]} ${l.nPlay}`; let tt = ""; if (tEnd) { const r = Math.max(0, Math.round((tEnd - Date.now()) / 1000)); tt = ` · ${l.nOut} ${r >= 60 ? Math.ceil(r / 60) + " " + l.min : r + " s"}`; } $("nstatus").textContent = s + tt; $("nclock").textContent = hm(new Date()); }
+$("nsound").addEventListener("click", e => { const b = e.target.closest("button"); if (!b) return; snd = b.dataset.s; if (snd !== "off") chime([392, 330, 262]); renderNight(); });
+$("ntimer").addEventListener("click", e => { const b = e.target.closest("button"); if (!b) return; tEnd = Date.now() + (+b.dataset.m) * 60000; clearInterval(tH); tH = setInterval(() => { nStatus(); if (Date.now() >= tEnd) { clearInterval(tH); tEnd = 0; $("nightOv").classList.add("sleep"); if (window.fully) try { window.fully.turnScreenOff(true) } catch (e) {} } }, 1000); nStatus(); });
+$("nightOv").addEventListener("click", () => { if ($("nightOv").classList.contains("sleep")) { $("nightOv").classList.remove("sleep"); nStatus(); } });
+$("nexit").addEventListener("click", e => { e.stopPropagation(); clearInterval(tH); tEnd = 0; snd = "off"; $("nightOv").classList.remove("open", "sleep"); setView("home"); });
+
+/* ---------- навигация и язык ---------- */
+function setView(v) {
+  if (v === "night") { renderNight(); $("nightOv").classList.add("open"); }
+  else ["home", "kids", "baby", "kitchen", "photos"].forEach(x => $("v-" + x).classList.toggle("on", x === v));
+  document.querySelectorAll("#nav button").forEach(b => b.classList.toggle("on", b.dataset.v === v));
+}
+$("nav").addEventListener("click", e => { const b = e.target.closest("button"); if (b) setView(b.dataset.v); });
+document.querySelector(".bar").addEventListener("click", e => { const b = e.target.closest("button"); if (!b || !b.dataset.l) return; lang = b.dataset.l; store.set("fs-lang", lang); applyLang(); });
+function applyLang() {
+  const l = L(); document.documentElement.lang = lang;
+  document.querySelectorAll("[data-n]").forEach(el => { if (l[el.dataset.n] !== undefined) el.textContent = l[el.dataset.n]; });
+  document.querySelectorAll("[data-np]").forEach(el => el.placeholder = l[el.dataset.np]);
+  document.querySelectorAll(".bar [data-l]").forEach(b => b.classList.toggle("on", b.dataset.l === lang));
+  if (S.me) renderAll();
+}
+function renderAll() { renderClock(); renderSched(); renderTasks(); renderEvents(); renderPhrase(); renderWeather(); renderApps(); renderRit(); renderLog(); renderBaby(); renderGrowth(); renderHints(); applyTod(); renderIdeas(); renderShop(); renderWho(); }
+
+/* ---------- клавиатура ---------- */
+(() => {
+  const LAY = { ru: ["йцукенгшщзхъ", "фывапролджэ", "ячсмитьбю"], en: ["qwertyuiop", "asdfghjkl", "zxcvbnm"] }, NUM = ["1234567890", "-/:;()₸@\"", ".,?!'%+_"];
+  let lay = "ru", shift = false, num = false, target = null;
+  const isTouch = () => !!window.fully || matchMedia("(pointer:coarse)").matches || store.get("fs-kb", false);
+  function draw() {
+    const rows = num ? NUM : LAY[lay];
+    const r = rows.map((s, i) => `<div class="kbrow">${i === 2 ? `<button class="w15" data-a="shift">${shift ? "⇪" : "⇧"}</button>` : ""}${[...s].map(c => `<button data-c="${c}">${shift ? c.toUpperCase() : c}</button>`).join("")}${i === 2 ? `<button class="w15" data-a="back">⌫</button>` : ""}</div>`);
+    r.push(`<div class="kbrow"><button class="w15" data-a="num">${num ? (lay === "ru" ? "АБВ" : "ABC") : "123"}</button><button class="w15" data-a="lang">${lay === "ru" ? "EN" : "RU"}</button><button class="w6" data-c=" ">${lay === "ru" ? "пробел" : "space"}</button><button class="w15" data-a="hide">⌄</button><button class="w2 acc" data-a="ok">${lay === "ru" ? "Готово" : "Done"}</button></div>`);
+    $("kbrows").innerHTML = r.join(""); prev();
+  }
+  function prev() { $("kbprev").textContent = target ? (target.type === "password" ? "•".repeat(target.value.length) : (target.value || target.placeholder)) : ""; }
+  function open(el) { target = el; lay = el.type === "email" || el.type === "password" ? "en" : lang; shift = !el.value && el.type !== "email" && el.type !== "password"; num = false; draw(); $("kb").classList.add("open"); }
+  function close() { $("kb").classList.remove("open"); target = null; }
+  document.addEventListener("focusin", e => { if (e.target.matches("[data-kb]") && isTouch()) open(e.target); });
+  document.querySelectorAll("[data-kb]").forEach(el => { if (!isTouch()) el.removeAttribute("inputmode"); });
+  document.addEventListener("pointerdown", e => { if ($("kb").classList.contains("open") && !e.target.closest("#kb") && !e.target.matches("[data-kb]")) close(); });
+  $("kb").addEventListener("pointerdown", e => e.preventDefault());
+  $("kb").addEventListener("click", e => {
+    const b = e.target.closest("button"); if (!b || !target) return; const a = b.dataset.a;
+    if (b.dataset.c !== undefined) { target.value += shift ? b.dataset.c.toUpperCase() : b.dataset.c; if (shift) { shift = false; draw(); } }
+    else if (a === "back") target.value = target.value.slice(0, -1);
+    else if (a === "shift") { shift = !shift; draw(); }
+    else if (a === "num") { num = !num; draw(); }
+    else if (a === "lang") { lay = lay === "ru" ? "en" : "ru"; draw(); }
+    else if (a === "hide") close();
+    else if (a === "ok") { const f = target.form; close(); if (f) f.requestSubmit(); return; }
+    target.dispatchEvent(new Event("input", { bubbles: true })); prev();
+  });
+})();
+
+/* ---------- вход ---------- */
+async function afterLogin(user) {
+  S.me = user;
+  const m = await q(sb.from("members").select("role,name").eq("user_id", user.id));
+  if (!m.length) { $("loginMsg").textContent = L().noAccess + " (" + user.email + ")"; $("loginOv").classList.add("open"); return; }
+  S.role = m[0].role;
+  try { const a = (await q(sb.from("settings").select("value").eq("key", "apps")))[0]; if (a) APPS = a.value; } catch (e) {}
+  $("loginOv").classList.remove("open");
+  await loadAll();
+  loadWeather();
+  const nh = new Date().getHours(); if (nh >= 21 || nh < 6) setView("night");
+}
+$("loginF").addEventListener("submit", async e => {
+  e.preventDefault(); $("loginMsg").textContent = "";
+  const { data, error } = await sb.auth.signInWithPassword({ email: $("lEmail").value.trim(), password: $("lPass").value });
+  if (error) { $("loginMsg").textContent = L().loginErr + error.message; return; }
+  afterLogin(data.user);
+});
+$("signupBtn").addEventListener("click", async () => {
+  const { error } = await sb.auth.signUp({ email: $("lEmail").value.trim(), password: $("lPass").value });
+  $("loginMsg").textContent = error ? L().loginErr + error.message : L().signupDone;
+});
+
+applyLang();
+renderClock(); setInterval(() => { renderClock(); if (S.me) { renderSched(); renderLog(); renderBabyLive(); renderHints(); applyTod(); } }, 20000);
+setInterval(() => { if (S.me) { loadAll(); loadWeather(); } }, 10 * 60000);
+document.querySelectorAll(".photo").forEach(p => p.classList.add("demo")); startSlides();
+const { data: { session } } = await sb.auth.getSession();
+if (session) afterLogin(session.user);
+
+</script>
+</body>
+</html>
