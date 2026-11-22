@@ -516,7 +516,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.4";
 const SB_URL = "https://svjlqxkqvvanclemddce.supabase.co";
 const SB_KEY = "sb_publishable_YHELTOfBVYlvmLKTAb99ww_RWTwf6bb";
 const sb = createClient(SB_URL, SB_KEY);
-const APP_VER = "1795360297";
+const APP_VER = "1795360974";
 /* новая версия на сайте — телевизор перезагрузится сам */
 setInterval(async () => { try { const t = await (await fetch("version.txt?" + Date.now(), { cache: "no-store" })).text(); const v = t.trim(); if (v && v !== APP_VER && new URLSearchParams(location.search).get("v") !== v && !document.querySelector(".ov.open:not(#nightOv)")) location.replace(location.pathname + "?v=" + v); } catch (e) {} }, 5 * 60000);
 /* ---------- Леона: контент по возрасту (месяцы) ---------- */
@@ -580,7 +580,7 @@ const Sky = (() => {
   }
   function frame(t) {
     raf = requestAnimationFrame(frame); if (document.hidden) return;
-    const dt = Math.min(.05, (t - last) / 1000 || .016); if (t - last < 33) return; last = t;
+    const dt = Math.min(.05, (t - last) / 1000 || .016); if (t - last < (/Android/.test(navigator.userAgent) ? 60 : 33)) return; last = t;
     cx.clearRect(0, 0, W, H);
     if (night && kind === "clear") { const g = cx.createRadialGradient(W * .8, H * .15, 0, W * .8, H * .15, 70); g.addColorStop(0, "rgba(255,250,230,.9)"); g.addColorStop(.18, "rgba(255,250,230,.85)"); g.addColorStop(.22, "rgba(200,210,255,.15)"); g.addColorStop(1, "rgba(200,210,255,0)"); cx.fillStyle = g; cx.beginPath(); cx.arc(W * .8, H * .15, 70, 0, 7); cx.fill(); }
     if (!night && kind === "clear") { const g = cx.createRadialGradient(W * .82, H * .1, 0, W * .82, H * .1, H * .5); g.addColorStop(0, "rgba(255,245,200,.55)"); g.addColorStop(1, "rgba(255,245,200,0)"); cx.fillStyle = g; cx.fillRect(0, 0, W, H); }
@@ -1060,7 +1060,7 @@ const VOSK_MODEL = "https://svjlqxkqvvanclemddce.supabase.co/storage/v1/object/p
 let wake = { on: false, busy: false, last: 0 };
 window.lumiWakePause = v => { wake.busy = v; };
 async function startWake() {
-  if (wake.on || store.get("fs-wake", true) === false) return;
+  if (wake.on || store.get("fs-wake", false) !== true) return; // микрофон приставки даёт тишину — слушание выключено, чтобы не грузить
   wake.on = true;
   try {
     if (!window.Vosk) await new Promise((ok, no) => { const sc = document.createElement("script"); sc.src = VOSK_JS; sc.onload = ok; sc.onerror = no; document.head.appendChild(sc); });
@@ -1169,7 +1169,7 @@ function fillLayer(layer, group, done) {
     if (it.v) {
       const v = document.createElement("video"); v.muted = true; v.playsInline = true; v.loop = group.length > 1; v.preload = "auto";
       v.oncanplay = () => { v.oncanplay = null; v.play().catch(() => {}); ready(Math.min(45000, Math.max(slideSec * 1000, (v.duration || 15) * 1000))); };
-      v.onerror = () => ready(-1); v.src = it.u + "=dv"; cell.appendChild(v);
+      let tried = false; v.onerror = () => { if (!tried) { tried = true; v.src = it.u + "=dv"; } else ready(-1); }; v.src = it.u + "=m22"; cell.appendChild(v);
     } else {
       const im = new Image(); im.alt = ""; im.onload = () => ready(slideSec * 1000); im.onerror = () => ready(-1); im.src = mediaUrl(it, W); cell.appendChild(im);
     }
@@ -1183,7 +1183,14 @@ async function loadPhotoUrls() {
   try { S.hidden = new Set((await q(sb.from("hidden_media").select("u"))).map(x => x.u)); } catch (e) { S.hidden = S.hidden || new Set(); }
   const first = !SLIDES.length;
   SLIDES = buildSlides([...own, ...(S.album || [])].filter(it => !S.hidden.has(it.own ? it.path : it.u)));
-  renderPhotoGrid([...own.map(x => x.u), ...(S.album || []).map(x => x.u + "=w400-h400-c-no")].slice(0, 120));
+  // случайный порядок без повторов, пока не покажутся все; помним, что уже было, даже после перезагрузки
+  const keyOf = g => g.map(x => (x.own ? x.path : x.u).slice(-24)).join("+");
+  const seenK = new Set(store.get("fs-shown", []));
+  const fresh = SLIDES.filter(g => !seenK.has(keyOf(g)));
+  if (!fresh.length) store.set("fs-shown", []);
+  SLIDES = shuffle(fresh.length ? fresh : SLIDES.slice());
+  window.__markShown = g => { const a = store.get("fs-shown", []); a.push(keyOf(g)); if (a.length > 3000) a.splice(0, a.length - 3000); store.set("fs-shown", a); };
+  renderPhotoGrid([...own.map(x => x.u), ...(S.album || []).map(x => x.u + "=w400-h400-c-no")]);
   if (SLIDES.length && first) { document.querySelectorAll(".photo.demo").forEach(p => p.remove()); $("realPhotos").innerHTML = `<div class="photo"></div><div class="photo"></div>`; slideI = -1; startSlides(); }
   else if (!SLIDES.length) startSlides();
 }
@@ -1202,7 +1209,7 @@ function nextSlide() {
   slideI = (slideI + 1) % SLIDES.length;
   fillLayer(nxt, SLIDES[slideI], ms => {
     if (ms < 0) { slideT = setTimeout(nextSlide, 300); return; }
-    cur?.classList.remove("on"); nxt.classList.add("on");
+    cur?.classList.remove("on"); nxt.classList.add("on"); try { window.__markShown?.(SLIDES[slideI]); } catch (e) {}
     setTimeout(() => cur?.querySelectorAll("video").forEach(v => v.pause()), 2100);
     slideT = setTimeout(nextSlide, ms);
   });
