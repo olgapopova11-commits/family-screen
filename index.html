@@ -500,7 +500,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.4";
 const SB_URL = "https://svjlqxkqvvanclemddce.supabase.co";
 const SB_KEY = "sb_publishable_YHELTOfBVYlvmLKTAb99ww_RWTwf6bb";
 const sb = createClient(SB_URL, SB_KEY);
-const APP_VER = "1795357588";
+const APP_VER = "1795357873";
 /* новая версия на сайте — телевизор перезагрузится сам */
 setInterval(async () => { try { const t = await (await fetch("version.txt?" + Date.now(), { cache: "no-store" })).text(); const v = t.trim(); if (v && v !== APP_VER && new URLSearchParams(location.search).get("v") !== v && !document.querySelector(".ov.open:not(#nightOv)")) location.replace(location.pathname + "?v=" + v); } catch (e) {} }, 5 * 60000);
 /* ---------- Леона: контент по возрасту (месяцы) ---------- */
@@ -595,7 +595,7 @@ const T = {
   ru: {
     vHome: "Главная", vKids: "Дети", vKitchen: "Кухня", vPhotos: "Фото", vNight: "Ночь",
     wLoading: "Загружаю погоду…", remT: "Сегодня понедельник", remS: "Соберите вещи в садик: сменка, пижама, запасная одежда", done: "Готово",
-    phL: "Фраза дня на английском", ask: "Спросить Луми", listening: "Слушаю… говорите", thinking: "Думаю…", askErr: "Не получилось ответить. Попробуйте ещё раз.", micErr: "Нет доступа к микрофону",
+    phL: "Фраза дня на английском", ask: "Скажите «Луми» или нажмите", listening: "Слушаю… говорите", thinking: "Думаю…", askErr: "Не получилось ответить. Попробуйте ещё раз.", micErr: "Нет доступа к микрофону",
     hSched: "Режим дня", hTasks: "Няне на сегодня", hCal: "Календарь", hWear: "Что надеть на улицу",
     logSub: "Дневник для няни", hCook: "Что приготовить сегодня", cookEx: "«Папе ✓» — без глютена и с низким содержанием жиров.",
     hShop: "Список покупок", addPh: "Добавить…", add: "Добавить", usual: "Обычно покупаем · оранжевые — пора купить", magnum: "Собрать корзину на magnum.kz",
@@ -619,7 +619,7 @@ const T = {
   en: {
     vHome: "Home", vKids: "Kids", vKitchen: "Kitchen", vPhotos: "Photos", vNight: "Night",
     wLoading: "Loading weather…", remT: "It's Monday", remS: "Pack the kindergarten bag: indoor shoes, pyjamas, spare clothes", done: "Done",
-    phL: "Phrase of the day in Russian", ask: "Ask Lumi", listening: "Listening… go ahead", thinking: "Thinking…", askErr: "Couldn't answer. Try again.", micErr: "No microphone access",
+    phL: "Phrase of the day in Russian", ask: "Say “Lumi” or tap", listening: "Listening… go ahead", thinking: "Thinking…", askErr: "Couldn't answer. Try again.", micErr: "No microphone access",
     hSched: "Today's routine", hTasks: "Nanny's to-do", hCal: "Calendar", hWear: "What to wear outside",
     logSub: "Log for the nanny", hCook: "What to cook today", cookEx: "“Dad ✓” = gluten-free and low in fat.",
     hShop: "Shopping list", addPh: "Add…", add: "Add", usual: "Usually bought · orange = time to buy", magnum: "Build a magnum.kz cart",
@@ -937,6 +937,15 @@ window.lumiGreet = name => { const k = S.kids.find(x => x.name === name); if (k)
 $("whoHere").addEventListener("click", e => { if (e.target.id === "camBtn") return openCam(); const b = e.target.closest("[data-greet]"); if (b) greet(b.dataset.greet); });
 
 /* ---------- камера: знакомство и узнавание (всё на устройстве, лица хранятся только в этом браузере) ---------- */
+const ADULTS = ["Оля", "Лёша", "Няня"];
+function greetAdult(name) {
+  const en = lang === "en", open = S.tasks.filter(t => !t.done), ev = S.events[0], r = S.recipes.length ? S.recipes[dayN() % S.recipes.length] : null;
+  let msg;
+  if (name === "Няня") msg = en ? `Hello! Tasks for today: ${open.length ? open.map(t => t.text).join(", ") : "none yet"}.` : `Здравствуйте! Задачи на сегодня: ${open.length ? open.map(t => t.text).join(", ") : "пока нет"}.`;
+  else if (name === "Лёша") msg = en ? `Hi Lyosha! Dinner idea: ${r ? (r.title_en || r.title) : "check the Kitchen tab"}.` : `Лёша, привет! Идея на ужин: ${r ? r.title : "загляни на Кухню"}.`;
+  else msg = en ? `Hi Olya! ${open.length} tasks for the nanny${ev ? `, next: ${ev.title}` : ""}.` : `Оля, привет! У няни ${open.length} задач${ev ? `, ближайшее: ${ev.title}` : ""}.`;
+  bubble("", msg); speak(msg, lang); chime([523, 659, 784]);
+}
 const FA_URL = "https://cdn.jsdelivr.net/npm/@vladmandic/face-api@1.7.15/dist/face-api.esm.js";
 const FA_MODELS = "https://cdn.jsdelivr.net/npm/@vladmandic/face-api@1.7.15/model/";
 let fa = null, camStream = null, recogT = null; const lastSeen = {};
@@ -960,7 +969,7 @@ async function descriptor() {
 function openCam() {
   const l = L();
   $("camP").innerHTML = `<h3>${l.camT}</h3><p class="sub" id="camS" style="margin:0">${l.camLoading}</p>
-    <div class="who">${S.kids.map(k => `<button data-enroll="${k.id}"><span class="av">${esc(k.name[0])}</span>${esc(k.name)}<small>${(faces()[k.id] || []).length ? " ✓" : ""}</small></button>`).join("")}</div>
+    <div class="who">${[...S.kids.map(k => [String(k.id), k.name]), ...ADULTS.map(a => ["a:" + a, a])].map(([id, nm]) => `<button data-enroll="${id}"><span class="av">${esc(nm[0])}</span>${esc(nm)}<small>${(faces()[id] || []).length ? " ✓" : ""}</small></button>`).join("")}</div>
     <div style="display:flex;gap:10px;justify-content:flex-end"><button class="btn ghost" id="camReset">${l.camReset}</button><button class="btn" id="camClose">${l.closeT}</button></div>`;
   $("camOv").classList.add("open");
   $("camClose").onclick = () => $("camOv").classList.remove("open");
@@ -971,13 +980,13 @@ function openCam() {
   })();
 }
 $("camP").addEventListener("click", async e => {
-  const b = e.target.closest("[data-enroll]"); if (!b) return; const l = L(), kid = S.kids.find(k => k.id === +b.dataset.enroll);
+  const b = e.target.closest("[data-enroll]"); if (!b) return; const l = L(), id = b.dataset.enroll, kid = id.startsWith("a:") ? { name: id.slice(2) } : S.kids.find(k => k.id === +id);
   try {
     await camOn(); await faLoad();
     const got = [];
     for (let i = 0; i < 12 && got.length < 5; i++) { $("camS").textContent = `${l.camLook} ${esc(kid.name)}… ${got.length}/5`; const d = await descriptor(); if (d) got.push(d); await new Promise(r => setTimeout(r, 500)); }
     if (got.length < 3) { $("camS").textContent = l.camNoFace; return; }
-    const f = faces(); f[kid.id] = got; store.set("fs-faces", f);
+    const f = faces(); f[id] = got; store.set("fs-faces", f);
     $("camS").textContent = `${l.camSaved} ${kid.name}!`; chime([523, 659, 784]); startRecog(); setTimeout(openCam, 1200);
   } catch (err) { $("camS").textContent = l.camNo + " (" + (err.name || err.message) + ")"; }
 });
@@ -988,7 +997,7 @@ async function recogTick() {
   const d = await descriptor(); if (!d) return;
   let best = null, bd = 1;
   for (const [id, arr] of Object.entries(f)) for (const x of arr) { const dd = dist(d, x); if (dd < bd) { bd = dd; best = id; } }
-  if (best && bd < .5 && Date.now() - (lastSeen[best] || 0) > 30 * 60000) { lastSeen[best] = Date.now(); const k = S.kids.find(x => x.id === +best); if (k && k.name !== "Леона") greet(k.id); }
+  if (best && bd < .5 && Date.now() - (lastSeen[best] || 0) > 30 * 60000) { lastSeen[best] = Date.now(); if (best.startsWith("a:")) greetAdult(best.slice(2)); else { const k = S.kids.find(x => x.id === +best); if (k && k.name !== "Леона") greet(k.id); } }
 }
 async function startRecog() {
   if (recogT || !Object.keys(faces()).length) return;
@@ -1010,6 +1019,31 @@ async function deviceCheck() {
     st.getTracks().forEach(t => t.stop()); } catch (e) { info.mic = "fail " + e.name + " " + e.message; }
   info.stage = "done"; await save();
   return info;
+}
+
+/* ---------- «Луми!» — офлайн-слушание ключевого слова прямо на приставке (Vosk), без интернета ---------- */
+const VOSK_JS = "https://cdn.jsdelivr.net/npm/vosk-browser@0.0.8/dist/vosk.js";
+const VOSK_MODEL = "https://svjlqxkqvvanclemddce.supabase.co/storage/v1/object/public/models/vosk-model-small-ru-0.22.tar.gz";
+let wake = { on: false, busy: false, last: 0 };
+window.lumiWakePause = v => { wake.busy = v; };
+async function startWake() {
+  if (wake.on || store.get("fs-wake", true) === false) return;
+  wake.on = true;
+  try {
+    if (!window.Vosk) await new Promise((ok, no) => { const sc = document.createElement("script"); sc.src = VOSK_JS; sc.onload = ok; sc.onerror = no; document.head.appendChild(sc); });
+    const model = await Vosk.createModel(VOSK_MODEL);
+    const st = await navigator.mediaDevices.getUserMedia({ audio: { ...(await micConstraint()), channelCount: 1 } });
+    const ac = new AudioContext(); const rate = ac.sampleRate;
+    const recog = new model.KaldiRecognizer(rate, JSON.stringify(["луми", "привет луми", "хай луми", "эй луми", "люми", "лу ми", "[unk]"]));
+    const hit = txt => { if (!txt || wake.busy || Date.now() - wake.last < 4000) return; if (/(^|\s)(лу ?ми|люми)(\s|$)/.test(txt)) { wake.last = Date.now(); recog.reset?.(); if (!$("askBtn").classList.contains("rec") && !$("askBtn").classList.contains("busy")) $("askBtn").click(); } };
+    recog.on("result", m => hit(m.result.text));
+    recog.on("partialresult", m => hit(m.result.partial));
+    const src = ac.createMediaStreamSource(st), proc = ac.createScriptProcessor(4096, 1, 1);
+    proc.onaudioprocess = e => { if (wake.busy) return; try { recog.acceptWaveform(e.inputBuffer); } catch (err) {} };
+    src.connect(proc); proc.connect(ac.destination);
+    $("askBtn").classList.add("wake");
+    try { await sb.from("device_status").insert({ info: { stage: "wake-on", ua: navigator.userAgent, rate } }); } catch (e) {}
+  } catch (e) { wake.on = false; console.warn("wake", e); try { await sb.from("device_status").insert({ info: { stage: "wake-fail", err: String(e), ua: navigator.userAgent } }); } catch (e2) {} }
 }
 
 
@@ -1285,7 +1319,7 @@ async function sendAsk(payload) {
     if (data.lang && data.lang !== lang && ["ru", "en"].includes(data.lang)) { lang = data.lang; store.set("fs-lang", lang); applyLang(); }
     bubble(data.heard, data.reply || ""); speak(data.reply || "", data.lang || lang); await runActions(data.actions);
   } catch (e) { bubble("", l.askErr); console.warn(e); }
-  finally { $("askBtn").classList.remove("busy", "rec"); $("askBtn").querySelector(".t").textContent = l.ask; }
+  finally { setTimeout(() => window.lumiWakePause(false), 3500); $("askBtn").classList.remove("busy", "rec"); $("askBtn").querySelector(".t").textContent = l.ask; }
 }
 const b64 = blob => new Promise(r => { const fr = new FileReader(); fr.onload = () => r(String(fr.result).split(",")[1]); fr.readAsDataURL(blob); });
 $("askBtn").addEventListener("click", async () => {
@@ -1296,12 +1330,12 @@ $("askBtn").addEventListener("click", async () => {
     const mime = ["audio/webm;codecs=opus", "audio/webm", "audio/ogg;codecs=opus", "audio/mp4"].find(m => window.MediaRecorder && MediaRecorder.isTypeSupported(m)) || "";
     rec = new MediaRecorder(st, mime ? { mimeType: mime } : {}); const chunks = [];
     rec.ondataavailable = e => e.data.size && chunks.push(e.data);
-    rec.onstop = async () => { st.getTracks().forEach(t => t.stop()); clearInterval(vadT); listenUI(false); chime([660, 990]); const blob = new Blob(chunks, { type: rec.mimeType || mime || "audio/webm" }); const m = (rec.mimeType || "audio/webm").split(";")[0]; rec = null; if (blob.size < 2000) { $("askBtn").classList.remove("rec"); $("askBtn").querySelector(".t").textContent = l.ask; return; } await sendAsk({ audio: await b64(blob), mime: m }); };
+    rec.onstop = async () => { st.getTracks().forEach(t => t.stop()); clearInterval(vadT); listenUI(false); chime([660, 990]); const blob = new Blob(chunks, { type: rec.mimeType || mime || "audio/webm" }); const m = (rec.mimeType || "audio/webm").split(";")[0]; rec = null; if (blob.size < 2000) { window.lumiWakePause(false); $("askBtn").classList.remove("rec"); $("askBtn").querySelector(".t").textContent = l.ask; return; } await sendAsk({ audio: await b64(blob), mime: m }); };
     // авто-стоп: после речи 1.3 с тишины, максимум 12 с
     const ac = new AudioContext(), an = ac.createAnalyser(); ac.createMediaStreamSource(st).connect(an); const buf = new Uint8Array(an.fftSize);
     let spoke = false, quietSince = 0; const t0 = Date.now();
     const vadT = setInterval(() => { an.getByteTimeDomainData(buf); let pk = 0; for (const v of buf) pk = Math.max(pk, Math.abs(v - 128)); listenUI(true, pk); if (pk > 18) { spoke = true; quietSince = 0; } else if (spoke && !quietSince) quietSince = Date.now(); if ((spoke && quietSince && Date.now() - quietSince > 900) || Date.now() - t0 > 12000) { if (rec && rec.state === "recording") rec.stop(); ac.close(); } }, 100);
-    rec.start(); chime([523, 784]); listenUI(true, 0); $('listenTxt').textContent = l.listening; $("askBtn").classList.add("rec"); $("askBtn").querySelector(".t").textContent = l.listening;
+    window.lumiWakePause(true); rec.start(); chime([523, 784]); listenUI(true, 0); $('listenTxt').textContent = l.listening; $("askBtn").classList.add("rec"); $("askBtn").querySelector(".t").textContent = l.listening;
   } catch (e) { bubble("", l.micErr + " (" + (e.name || e.message) + ")"); }
 });
 
@@ -1379,7 +1413,7 @@ async function afterLogin(user) {
   await loadAll();
   loadWeather();
   const nh = new Date().getHours(); if (nh >= 21 || nh < 6) setView("night");
-  if (isTV() || new URLSearchParams(location.search).has("check")) deviceCheck().finally(() => startRecog()); else startRecog();
+  if (isTV() || new URLSearchParams(location.search).has("check")) deviceCheck().finally(() => { startRecog(); startWake(); }); else startRecog();
 }
 $("loginF").addEventListener("submit", async e => {
   e.preventDefault(); $("loginMsg").textContent = "";
