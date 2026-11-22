@@ -331,6 +331,9 @@ body[data-wx=snow] .wx{background:linear-gradient(180deg,#3f5571,#6f84a0 60%,#9f
 body[data-wx=clear] .wx{background:linear-gradient(180deg,#1f5fae 0%,#3f8bd6 55%,#8fc3ee 100%)}
 #realPhotos .pcell img,#realPhotos .pcell video{filter:saturate(1.12) contrast(1.04)}
 .home{height:calc(var(--vh,1vh)*100)}
+.wx::before{display:none!important}
+body[data-tod=night] .wx::after{display:none}
+#skyCv{position:absolute;inset:0;width:100%;height:100%}
 </style>
 </head>
 <body>
@@ -405,7 +408,7 @@ body[data-wx=clear] .wx{background:linear-gradient(180deg,#1f5fae 0%,#3f8bd6 55%
 
   <section class="pane kitchen view" id="v-kitchen">
     <article class="glass card">
-      <h2 data-n="hCook">Что приготовить сегодня</h2>
+      <h2><span data-n="hCook">Что приготовить сегодня</span><button class="btn ghost" id="moreIdeas" data-n="moreIdeas" style="padding:6px 14px;min-height:36px">Другие идеи</button></h2>
       <div class="ideas" id="ideas"></div>
       <p class="ex" data-n="cookEx">«Папе ✓» — без глютена и с низким содержанием жиров.</p>
     </article>
@@ -477,7 +480,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.4";
 const SB_URL = "https://svjlqxkqvvanclemddce.supabase.co";
 const SB_KEY = "sb_publishable_YHELTOfBVYlvmLKTAb99ww_RWTwf6bb";
 const sb = createClient(SB_URL, SB_KEY);
-const APP_VER = "1795354844";
+const APP_VER = "1795354990";
 /* новая версия на сайте — телевизор перезагрузится сам */
 setInterval(async () => { try { const t = await (await fetch("version.txt?" + Date.now(), { cache: "no-store" })).text(); if (t.trim() && t.trim() !== APP_VER && !document.querySelector(".ov.open:not(#nightOv)")) location.reload(); } catch (e) {} }, 5 * 60000);
 /* ---------- Леона: контент по возрасту (месяцы) ---------- */
@@ -518,6 +521,47 @@ function sleepIntervals(ent, now = Date.now()) {
   return { out, sleeping: open, last: ev[ev.length - 1] || null };
 }
 
+/* ---------- живое небо как в Apple Погоде: звёзды, облака, дождь, снег, туман ---------- */
+const Sky = (() => {
+  const cv = document.createElement("canvas"); cv.id = "skyCv"; document.getElementById("wx").appendChild(cv);
+  const cx = cv.getContext("2d"); let W = 0, H = 0, parts = [], clouds = [], stars = [], kind = "", night = false, raf = 0, last = 0, shoot = null;
+  const R = (a, b) => a + Math.random() * (b - a);
+  function size() { const z = parseFloat(document.documentElement.style.zoom) || 1; W = cv.width = Math.round(innerWidth / z * .6); H = cv.height = Math.round(innerHeight / z * .6); }
+  function mkCloud(dark) { const s = R(.6, 1.4); return { x: R(-.2, 1.1) * W, y: R(.02, .45) * H, s, v: R(4, 12) * s, a: dark ? R(.25, .45) : R(.35, .6), blobs: Array.from({ length: 6 }, () => [R(-60, 60), R(-14, 14), R(28, 55)]) }; }
+  function setup() {
+    parts = []; clouds = []; stars = [];
+    const nCloud = kind === "clear" ? 2 : kind === "fog" ? 0 : 7;
+    for (let i = 0; i < nCloud; i++) clouds.push(mkCloud(kind === "rain" || night));
+    if (night && (kind === "clear" || kind === "cloudy")) for (let i = 0; i < 140; i++) stars.push({ x: R(0, W), y: R(0, H * .75), r: R(.4, 1.5), p: R(0, 6.3), s: R(.5, 2) });
+    if (kind === "rain") for (let i = 0; i < 160; i++) parts.push({ x: R(0, W), y: R(0, H), l: R(8, 18), v: R(380, 620) });
+    if (kind === "snow") for (let i = 0; i < 120; i++) parts.push({ x: R(0, W), y: R(0, H), r: R(1, 3.2), v: R(18, 45), p: R(0, 6.3) });
+    if (kind === "fog") for (let i = 0; i < 5; i++) clouds.push({ x: R(0, W), y: R(.3, .9) * H, s: R(2, 3.5), v: R(3, 7), a: .25, blobs: Array.from({ length: 8 }, () => [R(-120, 120), R(-10, 10), R(40, 80)]) });
+  }
+  function drawCloud(c) {
+    cx.save(); cx.translate(c.x, c.y); cx.scale(c.s, c.s * .7);
+    for (const [bx, by, br] of c.blobs) { const g = cx.createRadialGradient(bx, by, 0, bx, by, br); const col = night || kind === "rain" ? "190,200,220" : "255,255,255"; g.addColorStop(0, `rgba(${col},${c.a})`); g.addColorStop(1, `rgba(${col},0)`); cx.fillStyle = g; cx.beginPath(); cx.arc(bx, by, br, 0, 7); cx.fill(); }
+    cx.restore();
+  }
+  function frame(t) {
+    raf = requestAnimationFrame(frame); if (document.hidden) return;
+    const dt = Math.min(.05, (t - last) / 1000 || .016); if (t - last < 33) return; last = t;
+    cx.clearRect(0, 0, W, H);
+    if (night && kind === "clear") { const g = cx.createRadialGradient(W * .8, H * .15, 0, W * .8, H * .15, 70); g.addColorStop(0, "rgba(255,250,230,.9)"); g.addColorStop(.18, "rgba(255,250,230,.85)"); g.addColorStop(.22, "rgba(200,210,255,.15)"); g.addColorStop(1, "rgba(200,210,255,0)"); cx.fillStyle = g; cx.beginPath(); cx.arc(W * .8, H * .15, 70, 0, 7); cx.fill(); }
+    if (!night && kind === "clear") { const g = cx.createRadialGradient(W * .82, H * .1, 0, W * .82, H * .1, H * .5); g.addColorStop(0, "rgba(255,245,200,.55)"); g.addColorStop(1, "rgba(255,245,200,0)"); cx.fillStyle = g; cx.fillRect(0, 0, W, H); }
+    for (const s of stars) { s.p += dt * s.s; cx.fillStyle = `rgba(255,255,255,${.35 + .45 * Math.sin(s.p) ** 2})`; cx.beginPath(); cx.arc(s.x, s.y, s.r, 0, 7); cx.fill(); }
+    if (night && kind === "clear") {
+      if (!shoot && Math.random() < .004) shoot = { x: R(.1, .7) * W, y: R(.05, .3) * H, k: 0 };
+      if (shoot) { shoot.k += dt * 1.6; const x = shoot.x + shoot.k * 220, y = shoot.y + shoot.k * 90; const g = cx.createLinearGradient(x - 60, y - 25, x, y); g.addColorStop(0, "rgba(255,255,255,0)"); g.addColorStop(1, `rgba(255,255,255,${1 - shoot.k})`); cx.strokeStyle = g; cx.lineWidth = 1.6; cx.beginPath(); cx.moveTo(x - 60, y - 25); cx.lineTo(x, y); cx.stroke(); if (shoot.k >= 1) shoot = null; }
+    }
+    for (const c of clouds) { c.x += c.v * dt; if (c.x - 200 * c.s > W) c.x = -200 * c.s; drawCloud(c); }
+    if (kind === "rain") { cx.strokeStyle = "rgba(200,220,255,.45)"; cx.lineWidth = 1; cx.beginPath(); for (const p of parts) { p.y += p.v * dt; p.x -= p.v * dt * .18; if (p.y > H) { p.y = -20; p.x = R(0, W * 1.2); } cx.moveTo(p.x, p.y); cx.lineTo(p.x + p.l * .18, p.y - p.l); } cx.stroke(); }
+    if (kind === "snow") { cx.fillStyle = "rgba(255,255,255,.85)"; for (const p of parts) { p.p += dt; p.y += p.v * dt; p.x += Math.sin(p.p) * 12 * dt; if (p.y > H) { p.y = -5; p.x = R(0, W); } cx.beginPath(); cx.arc(p.x, p.y, p.r, 0, 7); cx.fill(); } }
+  }
+  function set(k, isNight) { if (k === kind && isNight === night) return; kind = k; night = isNight; size(); setup(); if (!raf) raf = requestAnimationFrame(frame); }
+  addEventListener("resize", () => { size(); setup(); });
+  return { set };
+})();
+
 
 const $ = id => document.getElementById(id);
 const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
@@ -545,7 +589,7 @@ const T = {
     steps: { morning: [["tooth", "Зубки"], ["potty", "Горшок"], ["dress", "Одеться"], ["bed", "Кроватка"]], evening: [["toys", "Игрушки"], ["bath", "Купание"], ["pjs", "Пижама"], ["book", "Сказка"]] },
     log: { feed: "Покормили", sleep: "Уснула", wake: "Проснулась", diaper: "Подгузник" }, ago: "назад", min: "мин", h: "ч", never: "сегодня ещё не было", empty: "Сегодня записей нет",
     growth: "Рост и вес", locked: "Скрыто. Откроется по PIN.", open: "Открыть", lock: "Закрыть", cm: "см", kg: "кг", noGrowth: "Пока нет замеров", addMeas: "Добавить замер", wrongPin: "Неверный PIN", setPin: "Придумайте PIN для роста и веса", pinSaved: "PIN сохранён",
-    dadOk: "Папе ✓", ingr: "Ингредиенты", stepsT: "Как готовить", closeT: "Закрыть", items: "шт.", magnumToast: "Список готов. Напишите Claude «собери корзину Magnum».",
+    dadOk: "Папе ✓", moreIdeas: "Другие идеи", ingr: "Ингредиенты", stepsT: "Как готовить", closeT: "Закрыть", items: "шт.", magnumToast: "Список готов. Напишите Claude «собери корзину Magnum».",
     nsound: [["tale", "Сказка"], ["lull", "Колыбельная"], ["noise", "Белый шум"], ["off", "Тишина"]], ntimer: [[15, "15 мин"], [30, "30 мин"], [60, "60 мин"]], nPlay: "играет", nOff: "Тишина", nOut: "экран погаснет через",
     fSched: "Новый пункт режима", fTask: "Новая задача для няни", fEvent: "Новое событие", fGrowth: "Новый замер", fTime: "Время", fTitle: "Что", fWho: "Для кого", fDate: "Дата и время", fAllDay: "Весь день", fKid: "Кто", fH: "Рост, см", fW: "Вес, кг", save: "Сохранить", del: "Удалить",
     saved: "Сохранено", err: "Ошибка: ", uploading: "Загружаю фото…", uploaded: "Фото добавлены", soon: "Скоро: голосовой помощник подключим следующим шагом", noApp: "Приложение откроется на телевизоре через Fully Kiosk",
@@ -569,7 +613,7 @@ const T = {
     steps: { morning: [["tooth", "Teeth"], ["potty", "Potty"], ["dress", "Get dressed"], ["bed", "Make bed"]], evening: [["toys", "Toys away"], ["bath", "Bath"], ["pjs", "Pyjamas"], ["book", "Story"]] },
     log: { feed: "Fed", sleep: "Fell asleep", wake: "Woke up", diaper: "Nappy" }, ago: "ago", min: "min", h: "h", never: "not yet today", empty: "No entries today",
     growth: "Height and weight", locked: "Hidden. Opens with a PIN.", open: "Open", lock: "Lock", cm: "cm", kg: "kg", noGrowth: "No measurements yet", addMeas: "Add measurement", wrongPin: "Wrong PIN", setPin: "Choose a PIN for height and weight", pinSaved: "PIN saved",
-    dadOk: "Dad ✓", ingr: "Ingredients", stepsT: "Method", closeT: "Close", items: "items", magnumToast: "List ready. Ask Claude to “build the Magnum cart”.",
+    dadOk: "Dad ✓", moreIdeas: "More ideas", ingr: "Ingredients", stepsT: "Method", closeT: "Close", items: "items", magnumToast: "List ready. Ask Claude to “build the Magnum cart”.",
     nsound: [["tale", "Story"], ["lull", "Lullaby"], ["noise", "White noise"], ["off", "Silence"]], ntimer: [[15, "15 min"], [30, "30 min"], [60, "60 min"]], nPlay: "playing", nOff: "Silence", nOut: "screen goes off in",
     fSched: "New routine item", fTask: "New task for the nanny", fEvent: "New event", fGrowth: "New measurement", fTime: "Time", fTitle: "What", fWho: "For whom", fDate: "Date and time", fAllDay: "All day", fKid: "Who", fH: "Height, cm", fW: "Weight, kg", save: "Save", del: "Delete",
     saved: "Saved", err: "Error: ", uploading: "Uploading photos…", uploaded: "Photos added", soon: "Coming soon: the voice assistant is the next step", noApp: "Apps open on the TV through Fully Kiosk",
@@ -651,7 +695,7 @@ async function loadWeather() {
     const later = (j.hourly.precipitation_probability || []).slice(hrs + 1).some(p => p >= 50);
     const snowLater = (j.hourly.weather_code || []).slice(hrs + 1).some(c => (c >= 71 && c <= 77) || c === 85 || c === 86);
     S.weather = { t: Math.round(j.current.temperature_2m), feels: Math.round(j.current.apparent_temperature), code: j.current.weather_code, later, snowLater };
-    const c = S.weather.code; document.body.dataset.wx = c <= 1 ? "clear" : c <= 3 ? "cloudy" : c <= 48 ? "fog" : (c >= 71 && c <= 77) || c === 85 || c === 86 ? "snow" : "rain";
+    const c = S.weather.code; document.body.dataset.wx = c <= 1 ? "clear" : c <= 3 ? "cloudy" : c <= 48 ? "fog" : (c >= 71 && c <= 77) || c === 85 || c === 86 ? "snow" : "rain"; updSky();
   } catch (e) { S.weather = null; }
   renderWeather();
 }
@@ -825,7 +869,8 @@ $("v-baby").addEventListener("click", async e => {
 
 /* подсказки на главной */
 function tod(h = new Date().getHours()) { return h >= 21 || h < 6 ? "night" : h < 11 ? "morning" : h < 17 ? "day" : "evening"; }
-function applyTod() { document.body.dataset.tod = tod(); }
+function applyTod() { document.body.dataset.tod = tod(); updSky(); }
+function updSky() { try { Sky.set(document.body.dataset.wx || "cloudy", ["night", "evening"].includes(document.body.dataset.tod) && new Date().getHours() >= 17 || document.body.dataset.tod === "night"); } catch (e) {} }
 function renderHints() {
   if (!$("hints")) return;
   const l = L(), out = [], now = Date.now(), t = tod();
@@ -955,11 +1000,14 @@ $("growth").addEventListener("click", e => { if (e.target.id === "gadd") openFor
 
 /* ---------- кухня ---------- */
 const DEV = { thermomix: ["Thermomix", ""], kenwood: ["Kenwood Cooking Chef", "k"], other: ["", ""] };
+let ideaShift = 0;
 function renderIdeas() {
   const l = L();
   const en = lang === "en";
-  $("ideas").innerHTML = S.recipes.slice(0, 4).map(r => `<div class="idea" data-r="${r.id}" role="button" tabindex="0" style="cursor:pointer"><div><h4>${esc(en && r.title_en ? r.title_en : r.title)}</h4><p>${esc(en && r.note_en ? r.note_en : r.note || "")}</p></div><div style="display:grid;gap:6px;justify-items:end">${r.device && DEV[r.device][0] ? `<span class="dev ${DEV[r.device][1]}">${DEV[r.device][0]}${r.minutes ? ` · ${r.minutes} ${l.min}` : ""}</span>` : ""}${r.dad_ok ? `<span class="dev" style="background:rgba(52,199,89,.3)">${l.dadOk}</span>` : ""}</div></div>`).join("");
+  const pickR = (() => { const n = S.recipes.length, out = []; if (!n) return out; let k = (dayN() * 4 + ideaShift) % n; for (let i = 0; i < Math.min(4, n); i++) out.push(S.recipes[(k + i) % n]); return out; })();
+  $("ideas").innerHTML = pickR.map(r => `<div class="idea" data-r="${r.id}" role="button" tabindex="0" style="cursor:pointer"><div><h4>${esc(en && r.title_en ? r.title_en : r.title)}</h4><p>${esc(en && r.note_en ? r.note_en : r.note || "")}</p></div><div style="display:grid;gap:6px;justify-items:end">${r.device && DEV[r.device][0] ? `<span class="dev ${DEV[r.device][1]}">${DEV[r.device][0]}${r.minutes ? ` · ${r.minutes} ${l.min}` : ""}</span>` : ""}${r.dad_ok ? `<span class="dev" style="background:rgba(52,199,89,.3)">${l.dadOk}</span>` : ""}</div></div>`).join("");
 }
+$("moreIdeas").addEventListener("click", () => { ideaShift += 4; renderIdeas(); });
 $("ideas").addEventListener("click", e => {
   const c = e.target.closest("[data-r]"); if (!c) return; const r = S.recipes.find(x => x.id === +c.dataset.r); if (!r) return;
   const l = L(), en = lang === "en", tr = p => Array.isArray(p) ? (en ? p[1] : p[0]) : p;
