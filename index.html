@@ -339,8 +339,8 @@ body:has(.remind:not(.hide)) .phrase{display:none}
   <section class="pane view" id="v-photos" style="grid-template-columns:minmax(0,1fr)">
     <article class="glass card">
       <h2 data-n="hPhotos">Фото для экрана</h2>
-      <p style="color:var(--soft);margin:0 0 14px" data-n="photoHelp">Выберите фото с телефона, в том числе из Google Фото. На экране появятся только они.</p>
-      <label class="btn" style="display:inline-block"><span data-n="photoAdd">Добавить фото</span><input type="file" id="photoIn" accept="image/*" multiple hidden></label>
+      <p style="color:var(--soft);margin:0 0 14px" data-n="photoHelp">На экране показываются только выбранные фото.</p>
+      <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center"><button class="btn" id="gPhotos" data-n="gPick">Выбрать в Google Фото</button><label class="btn ghost" style="display:inline-block"><span data-n="photoAdd">С этого устройства</span><input type="file" id="photoIn" accept="image/*" multiple hidden></label><span id="gStatus" class="sub" style="margin:0"></span></div>
       <div class="pgrid" id="pgrid"></div>
     </article>
   </section>
@@ -445,7 +445,7 @@ const T = {
     hSched: "Режим дня", hTasks: "Няне на сегодня", hCal: "Календарь", hWear: "Что надеть на улицу",
     logSub: "Дневник для няни", hCook: "Что приготовить сегодня", cookEx: "«Папе ✓» — без глютена и с низким содержанием жиров.",
     hShop: "Список покупок", addPh: "Добавить…", add: "Добавить", usual: "Обычно покупаем · оранжевые — пора купить", magnum: "Собрать корзину на magnum.kz",
-    hPhotos: "Фото для экрана", photoHelp: "Выберите фото с телефона, в том числе из Google Фото. На экране появятся только они.", photoAdd: "Добавить фото",
+    hPhotos: "Фото для экрана", photoHelp: "На экране показываются только выбранные фото.", photoAdd: "С этого устройства", gPick: "Выбрать в Google Фото", gWait: "Выберите фото в открывшемся окне Google Фото и нажмите «Готово»…",
     nExit: "Выйти из ночного режима", wake: "Коснитесь, чтобы включить", pinTitle: "Введите PIN", cancel: "Отмена",
     loginT: "Луми", loginPh: "Логин", passPh: "Пароль", login: "Войти", signup: "Создать аккаунт", signupDone: "Аккаунт создан. Напишите Claude, чтобы открыть доступ.",
     noAccess: "Вход выполнен, но доступа пока нет. Напишите Claude, чтобы добавить этот аккаунт в семью.", loginErr: "Не получилось войти: ",
@@ -469,7 +469,7 @@ const T = {
     hSched: "Today's routine", hTasks: "Nanny's to-do", hCal: "Calendar", hWear: "What to wear outside",
     logSub: "Log for the nanny", hCook: "What to cook today", cookEx: "“Dad ✓” = gluten-free and low in fat.",
     hShop: "Shopping list", addPh: "Add…", add: "Add", usual: "Usually bought · orange = time to buy", magnum: "Build a magnum.kz cart",
-    hPhotos: "Photos for the screen", photoHelp: "Pick photos from your phone, Google Photos included. Only these appear on the screen.", photoAdd: "Add photos",
+    hPhotos: "Photos for the screen", photoHelp: "Only the photos you pick appear on the screen.", photoAdd: "From this device", gPick: "Pick from Google Photos", gWait: "Pick photos in the Google Photos window and tap Done…",
     nExit: "Leave night mode", wake: "Tap to wake", pinTitle: "Enter PIN", cancel: "Cancel",
     loginT: "Lumi", loginPh: "Login", passPh: "Password", login: "Sign in", signup: "Create account", signupDone: "Account created. Ask Claude to grant access.",
     noAccess: "Signed in, but no access yet. Ask Claude to add this account to the family.", loginErr: "Couldn't sign in: ",
@@ -842,14 +842,49 @@ async function shrink(file) {
   const c = document.createElement("canvas"); c.width = Math.round(img.width * s); c.height = Math.round(img.height * s); c.getContext("2d").drawImage(img, 0, 0, c.width, c.height);
   return await new Promise(r => c.toBlob(r, "image/jpeg", .86));
 }
+async function saveBlob(blob, when) {
+  const small = await shrink(blob); const path = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}.jpg`;
+  const { error } = await sb.storage.from("photos").upload(path, small, { contentType: "image/jpeg" }); if (error) { toast(L().err + error.message); return; }
+  const row = await q(sb.from("photos").insert({ path, taken_at: when || null }).select().single()); S.photos.unshift(row);
+}
 $("photoIn").addEventListener("change", async e => {
   const files = [...e.target.files]; if (!files.length) return; toast(L().uploading);
-  for (const f of files) {
-    const blob = await shrink(f); const path = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}.jpg`;
-    const { error } = await sb.storage.from("photos").upload(path, blob, { contentType: "image/jpeg" }); if (error) { toast(L().err + error.message); continue; }
-    const row = await q(sb.from("photos").insert({ path, taken_at: f.lastModified ? new Date(f.lastModified).toISOString() : null }).select().single()); S.photos.unshift(row);
-  }
+  for (const f of files) await saveBlob(f, f.lastModified ? new Date(f.lastModified).toISOString() : null);
   e.target.value = ""; toast(L().uploaded); loadPhotoUrls();
+});
+
+/* ---------- Google Фото (Picker API) ---------- */
+const G_CLIENT = "663140204908-j9iter9btevfr5u21n949qfjp8234uk0.apps.googleusercontent.com";
+const G_API = "https://photospicker.googleapis.com/v1";
+let gTok = null;
+function gisLoad() { return new Promise((ok, no) => { if (window.google?.accounts?.oauth2) return ok(); const sc = document.createElement("script"); sc.src = "https://accounts.google.com/gsi/client"; sc.onload = ok; sc.onerror = no; document.head.appendChild(sc); }); }
+async function gToken() {
+  if (gTok && gTok.exp > Date.now()) return gTok.v;
+  await gisLoad();
+  return new Promise((ok, no) => {
+    const c = google.accounts.oauth2.initTokenClient({ client_id: G_CLIENT, scope: "https://www.googleapis.com/auth/photospicker.mediaitems.readonly", callback: r => { if (r.error) return no(new Error(r.error)); gTok = { v: r.access_token, exp: Date.now() + (r.expires_in - 60) * 1000 }; ok(gTok.v); } });
+    c.requestAccessToken();
+  });
+}
+const gFetch = async (url, tok, opt = {}) => { const r = await fetch(url, { ...opt, headers: { Authorization: "Bearer " + tok, ...(opt.headers || {}) } }); if (!r.ok) throw new Error(r.status + " " + (await r.text()).slice(0, 120)); return r; };
+$("gPhotos").addEventListener("click", async () => {
+  const l = L(); let win = null;
+  try {
+    const tok = await gToken();
+    const ses = await (await gFetch(G_API + "/sessions", tok, { method: "POST", headers: { "Content-Type": "application/json" }, body: "{}" })).json();
+    win = window.open(ses.pickerUri + "/autoclose", "gpick", "width=1000,height=800");
+    if (!win) location.href = ses.pickerUri;
+    $("gStatus").textContent = l.gWait;
+    let st = ses; const t0 = Date.now();
+    while (!st.mediaItemsSet) { if (Date.now() - t0 > 15 * 60000) throw new Error("timeout"); await new Promise(r => setTimeout(r, 3000)); st = await (await gFetch(`${G_API}/sessions/${ses.id}`, tok)).json(); }
+    let items = [], page = "";
+    do { const j = await (await gFetch(`${G_API}/mediaItems?sessionId=${ses.id}&pageSize=100${page ? "&pageToken=" + page : ""}`, tok)).json(); items = items.concat(j.mediaItems || []); page = j.nextPageToken || ""; } while (page);
+    items = items.filter(i => (i.mediaFile?.mimeType || "").startsWith("image/"));
+    let n = 0;
+    for (const it of items) { $("gStatus").textContent = `${l.uploading} ${++n}/${items.length}`; const b = await (await gFetch(it.mediaFile.baseUrl + "=w2560-h2560", tok)).blob(); await saveBlob(b, it.createTime); }
+    try { await gFetch(`${G_API}/sessions/${ses.id}`, tok, { method: "DELETE" }); } catch (e) {}
+    $("gStatus").textContent = ""; toast(`${l.uploaded}: ${items.length}`); loadPhotoUrls();
+  } catch (e) { console.error(e); $("gStatus").textContent = l.err + e.message; }
 });
 
 /* ---------- формы добавления ---------- */
