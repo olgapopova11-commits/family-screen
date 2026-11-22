@@ -250,6 +250,10 @@ body:has(.remind:not(.hide)) .phrase{display:none}
 .formp.glass,.kb.glass,.nav.glass,.bar.glass{background:rgba(30,30,40,.55);backdrop-filter:blur(24px);-webkit-backdrop-filter:blur(24px)}
 .wrap,.pane{text-shadow:0 1px 3px rgba(0,0,0,.45)}
 .hint{background:rgba(255,255,255,.07);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px)}
+#realPhotos .photo .pfg{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;object-position:center 35%}
+#realPhotos .photo .pbg{position:absolute;inset:-40px;width:calc(100% + 80px);height:calc(100% + 80px);object-fit:cover;filter:blur(40px) brightness(.7) saturate(1.2);display:none}
+#realPhotos .photo.tall .pbg{display:block}
+#realPhotos .photo.tall .pfg{object-fit:contain;object-position:center}
 </style>
 </head>
 <body>
@@ -840,16 +844,23 @@ async function loadAlbum() {
   if (Date.now() - albumAt < 30 * 60000 && S.album) return;
   try { const { data } = await sb.functions.invoke("album", { method: "GET" }); if (data?.urls) { S.album = data.urls; S.albumVid = new Set(data.videos || []); albumAt = Date.now(); } } catch (e) { console.warn(e); }
 }
-const LAYER = `<div class="photo"><img alt="" style="width:100%;height:100%;object-fit:cover"><video muted playsinline preload="auto" style="width:100%;height:100%;object-fit:cover;display:none"></video></div>`;
+const LAYER = `<div class="photo"><img class="pbg" alt=""><img class="pfg" alt=""><video class="pfg" muted playsinline preload="auto" style="display:none"></video></div>`;
+/* вертикальные кадры не обрезаем: целиком по центру + размытая копия на фоне */
+function fit(layer, w, h, bgUrl) {
+  const tall = w / h < 1.3, bg = layer.querySelector(".pbg");
+  layer.classList.toggle("tall", tall);
+  if (tall) bg.src = bgUrl; else bg.removeAttribute("src");
+}
 function showIn(layer, it, done) {
-  const img = layer.querySelector("img"), vid = layer.querySelector("video");
+  const img = layer.querySelector("img.pfg"), vid = layer.querySelector("video");
+  const small = it.u.replace(/=w\d+-h\d+(-no)?$/, "") + "=w640-h640-no";
   if (it.v) {
     img.style.display = "none"; vid.style.display = "block"; vid.muted = true; vid.src = it.u + "=dv";
-    vid.oncanplay = () => { vid.oncanplay = null; vid.play().catch(() => {}); done(Math.min(45000, Math.max(8000, (vid.duration || 15) * 1000))); };
+    vid.oncanplay = () => { vid.oncanplay = null; fit(layer, vid.videoWidth || 16, vid.videoHeight || 9, it.u + "=w640-h640-no"); vid.play().catch(() => {}); done(Math.min(45000, Math.max(8000, (vid.duration || 15) * 1000))); };
     vid.onerror = () => { vid.onerror = null; done(-1); };
   } else {
     vid.pause(); vid.removeAttribute("src"); vid.style.display = "none"; img.style.display = "block";
-    img.onload = () => { img.onload = null; done(12000); }; img.onerror = () => { img.onerror = null; done(-1); }; img.src = it.u;
+    img.onload = () => { img.onload = null; fit(layer, img.naturalWidth, img.naturalHeight, it.u.includes("googleusercontent") ? small : it.u); done(12000); }; img.onerror = () => { img.onerror = null; done(-1); }; img.src = it.u;
   }
 }
 async function loadPhotoUrls() {
