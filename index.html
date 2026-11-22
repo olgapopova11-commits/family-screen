@@ -839,7 +839,7 @@ async function loadPhotoUrls() {
   let own = [];
   if (S.photos.length) { const { data } = await sb.storage.from("photos").createSignedUrls(S.photos.map(p => p.path), 60 * 60 * 12); own = (data || []).filter(x => x.signedUrl).map(x => x.signedUrl); }
   await loadAlbum();
-  const alb = (S.album || []).map(u => u + "=w2560-h1440");
+  const alb = (S.album || []).map(u => u + "=w2560-h1440-no");
   const mix = [...own, ...alb]; for (let k = mix.length - 1; k > 0; k--) { const r = Math.floor(Math.random() * (k + 1)); [mix[k], mix[r]] = [mix[r], mix[k]]; }
   ALL = mix;
   renderPhotoGrid([...own, ...(S.album || []).map(u => u + "=w400-h400-c")].slice(0, 120));
