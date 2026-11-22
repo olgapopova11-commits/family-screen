@@ -254,6 +254,10 @@ body:has(.remind:not(.hide)) .phrase{display:none}
 #realPhotos .photo .pbg{position:absolute;inset:-40px;width:calc(100% + 80px);height:calc(100% + 80px);object-fit:cover;filter:blur(40px) brightness(.7) saturate(1.2);display:none}
 #realPhotos .photo.tall .pbg{display:block}
 #realPhotos .photo.tall .pfg{object-fit:contain;object-position:center}
+#realPhotos .photo{display:flex;gap:6px;background:#000}
+#realPhotos .pcell{flex:1;position:relative;overflow:hidden}
+#realPhotos .pcell img,#realPhotos .pcell video{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;object-position:center 35%}
+#realPhotos .photo.multi .pcell img,#realPhotos .photo.multi .pcell video{object-position:center 30%}
 </style>
 </head>
 <body>
@@ -838,57 +842,72 @@ $("addForm").addEventListener("submit", e => { e.preventDefault(); let v = $("ad
 $("magnum").addEventListener("click", () => toast(L().magnumToast));
 
 /* ---------- фото ---------- */
-/* фото и видео: загруженные вручную + весь общий альбом «Луми» (обновляется сам); видео без звука */
-let ALL = [], slideT = null, slideI = 0, albumAt = 0;
+/* фото и видео: загруженные вручную + весь общий альбом «Луми» (обновляется сам); видео без звука.
+   Вертикальные кадры собираются по 2–3 рядом, как в рамках — без обрезки и без пустых полей. */
+let SLIDES = [], slideT = null, slideI = -1, albumAt = 0;
 async function loadAlbum() {
   if (Date.now() - albumAt < 30 * 60000 && S.album) return;
-  try { const { data } = await sb.functions.invoke("album", { method: "GET" }); if (data?.urls) { S.album = data.urls; S.albumVid = new Set(data.videos || []); albumAt = Date.now(); } } catch (e) { console.warn(e); }
+  try { const { data } = await sb.functions.invoke("album", { method: "GET" }); if (data?.items) { S.album = data.items; albumAt = Date.now(); } } catch (e) { console.warn(e); }
 }
-const LAYER = `<div class="photo"><img class="pbg" alt=""><img class="pfg" alt=""><video class="pfg" muted playsinline preload="auto" style="display:none"></video></div>`;
-/* вертикальные кадры не обрезаем: целиком по центру + размытая копия на фоне */
-function fit(layer, w, h, bgUrl) {
-  const tall = w / h < 1.3, bg = layer.querySelector(".pbg");
-  layer.classList.toggle("tall", tall);
-  if (tall) bg.src = bgUrl; else bg.removeAttribute("src");
-}
-function showIn(layer, it, done) {
-  const img = layer.querySelector("img.pfg"), vid = layer.querySelector("video");
-  const small = it.u.replace(/=w\d+-h\d+(-no)?$/, "") + "=w640-h640-no";
-  if (it.v) {
-    img.style.display = "none"; vid.style.display = "block"; vid.muted = true; vid.src = it.u + "=dv";
-    vid.oncanplay = () => { vid.oncanplay = null; fit(layer, vid.videoWidth || 16, vid.videoHeight || 9, it.u + "=w640-h640-no"); vid.play().catch(() => {}); done(Math.min(45000, Math.max(8000, (vid.duration || 15) * 1000))); };
-    vid.onerror = () => { vid.onerror = null; done(-1); };
-  } else {
-    vid.pause(); vid.removeAttribute("src"); vid.style.display = "none"; img.style.display = "block";
-    img.onload = () => { img.onload = null; fit(layer, img.naturalWidth, img.naturalHeight, it.u.includes("googleusercontent") ? small : it.u); done(12000); }; img.onerror = () => { img.onerror = null; done(-1); }; img.src = it.u;
+function shuffle(a) { for (let k = a.length - 1; k > 0; k--) { const r = Math.floor(Math.random() * (k + 1)); [a[k], a[r]] = [a[r], a[k]]; } return a; }
+function buildSlides(items) {
+  const wide = [], tall = [];
+  items.forEach(it => (it.w && it.h && it.w / it.h < 1.2 ? tall : wide).push(it));
+  shuffle(wide); shuffle(tall);
+  const groups = [];
+  while (tall.length) {
+    const g = [tall.shift()]; const n = tall.length >= 2 ? 3 : tall.length === 1 ? 2 : 1;
+    // в группе максимум одно видео
+    while (g.length < n && tall.length) { const k = g.some(x => x.v) ? tall.findIndex(x => !x.v) : 0; if (k < 0) break; g.push(tall.splice(k, 1)[0]); }
+    groups.push(g);
   }
+  const out = []; let a = 0, b = 0;
+  while (a < wide.length || b < groups.length) { if (a < wide.length) out.push([wide[a++]]); if (b < groups.length && (a % 2 === 0 || a >= wide.length)) out.push(groups[b++]); }
+  return out;
+}
+const mediaUrl = (it, w) => it.own ? it.u : it.u + `=w${w}-h1440-no`;
+function fillLayer(layer, group, done) {
+  layer.innerHTML = ""; layer.classList.toggle("multi", group.length > 1);
+  const W = group.length > 1 ? Math.round(2560 / group.length) : 2560;
+  let left = group.length, ms = 12000, failed = false;
+  const ready = d => { if (failed) return; if (d < 0) { failed = true; return done(-1); } ms = Math.max(ms, d); if (--left === 0) done(ms); };
+  group.forEach(it => {
+    const cell = document.createElement("div"); cell.className = "pcell";
+    if (it.v) {
+      const v = document.createElement("video"); v.muted = true; v.playsInline = true; v.loop = group.length > 1; v.preload = "auto";
+      v.oncanplay = () => { v.oncanplay = null; v.play().catch(() => {}); ready(Math.min(45000, Math.max(8000, (v.duration || 15) * 1000))); };
+      v.onerror = () => ready(-1); v.src = it.u + "=dv"; cell.appendChild(v);
+    } else {
+      const im = new Image(); im.alt = ""; im.onload = () => ready(12000); im.onerror = () => ready(-1); im.src = mediaUrl(it, W); cell.appendChild(im);
+    }
+    layer.appendChild(cell);
+  });
 }
 async function loadPhotoUrls() {
   let own = [];
-  if (S.photos.length) { const { data } = await sb.storage.from("photos").createSignedUrls(S.photos.map(p => p.path), 60 * 60 * 12); own = (data || []).filter(x => x.signedUrl).map(x => ({ u: x.signedUrl, v: false })); }
+  if (S.photos.length) { const { data } = await sb.storage.from("photos").createSignedUrls(S.photos.map(p => p.path), 60 * 60 * 12); own = (data || []).filter(x => x.signedUrl).map(x => ({ u: x.signedUrl, own: true, v: false })); }
   await loadAlbum();
-  const alb = (S.album || []).map(u => S.albumVid?.has(u) ? { u, v: true } : { u: u + "=w2560-h1440-no", v: false });
-  const mix = [...own, ...alb]; for (let k = mix.length - 1; k > 0; k--) { const r = Math.floor(Math.random() * (k + 1)); [mix[k], mix[r]] = [mix[r], mix[k]]; }
-  const first = !ALL.length; ALL = mix;
-  renderPhotoGrid([...own.map(x => x.u), ...(S.album || []).map(u => u + "=w400-h400-c-no")].slice(0, 120));
-  if (ALL.length && first) { document.querySelectorAll(".photo.demo").forEach(p => p.remove()); $("realPhotos").innerHTML = LAYER + LAYER; slideI = -1; startSlides(); }
-  else if (!ALL.length) startSlides();
+  const first = !SLIDES.length;
+  SLIDES = buildSlides([...own, ...(S.album || [])]);
+  renderPhotoGrid([...own.map(x => x.u), ...(S.album || []).map(x => x.u + "=w400-h400-c-no")].slice(0, 120));
+  if (SLIDES.length && first) { document.querySelectorAll(".photo.demo").forEach(p => p.remove()); $("realPhotos").innerHTML = `<div class="photo"></div><div class="photo"></div>`; slideI = -1; startSlides(); }
+  else if (!SLIDES.length) startSlides();
 }
 function renderPhotoGrid(urls) { $("pgrid").innerHTML = urls.map(u => `<img src="${u}" alt="" loading="lazy">`).join(""); }
 function nextSlide() {
-  clearTimeout(slideT); if (!ALL.length) return;
+  clearTimeout(slideT); if (!SLIDES.length) return;
   const layers = [...$("realPhotos").children]; const cur = layers.find(x => x.classList.contains("on")), nxt = layers.find(x => x !== cur);
-  slideI = (slideI + 1) % ALL.length;
-  showIn(nxt, ALL[slideI], ms => {
+  slideI = (slideI + 1) % SLIDES.length;
+  fillLayer(nxt, SLIDES[slideI], ms => {
     if (ms < 0) { slideT = setTimeout(nextSlide, 300); return; }
     cur?.classList.remove("on"); nxt.classList.add("on");
-    setTimeout(() => { const v = cur?.querySelector("video"); if (v) v.pause(); }, 2100);
+    setTimeout(() => cur?.querySelectorAll("video").forEach(v => v.pause()), 2100);
     slideT = setTimeout(nextSlide, ms);
   });
 }
 function startSlides() {
   clearTimeout(slideT); clearInterval(slideT);
-  if (ALL.length) { $("dots").innerHTML = ""; nextSlide(); return; }
+  if (SLIDES.length) { $("dots").innerHTML = ""; nextSlide(); return; }
   const ph = [...document.querySelectorAll(".photo")]; let p = 0;
   $("dots").innerHTML = ph.length > 1 ? ph.slice(0, 12).map((_, i) => `<i class="${i === 0 ? "on" : ""}"></i>`).join("") : "";
   ph.forEach((x, i) => x.classList.toggle("on", i === 0));
