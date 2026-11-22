@@ -317,6 +317,10 @@ body[data-wx=cloudy] .wx::after{background:radial-gradient(40% 18% at 15% 22%,rg
 .pspeed:focus-visible{outline:2px solid #ffb340;outline-offset:2px}
 .phide{position:absolute;top:12px;right:12px;z-index:3;font:500 13px Inter,sans-serif;color:#fff;background:rgba(20,20,30,.4);border:1px solid rgba(255,255,255,.25);border-radius:999px;padding:7px 12px;min-height:34px;cursor:pointer;opacity:.55;backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);transition:opacity .2s}
 .pcell:hover .phide,.phide:focus-visible{opacity:1}
+.formp.cam{width:min(640px,94vw)}
+.cam video{width:100%;aspect-ratio:4/3;border-radius:20px;background:#000;object-fit:cover;transform:scaleX(-1)}
+#camP{display:grid;gap:12px}
+#camOv{background:rgba(10,12,30,.5)}
 </style>
 </head>
 <body>
@@ -436,6 +440,10 @@ body[data-wx=cloudy] .wx::after{background:radial-gradient(40% 18% at 15% 22%,rg
 
 <div class="ov" id="greetOv" role="dialog" aria-modal="true">
   <div class="glass formp greet" id="greetP"></div>
+</div>
+
+<div class="ov" id="camOv" role="dialog" aria-modal="true">
+  <div class="glass formp cam"><video id="camV" muted playsinline></video><div id="camP"></div></div>
 </div>
 
 <div class="ov" id="formOv" role="dialog" aria-modal="true">
@@ -831,7 +839,7 @@ function renderHints() {
 $("hints").addEventListener("click", e => { const b = e.target.closest("[data-go]"); if (b && b.dataset.go !== "home") setView(b.dataset.go); });
 
 /* приветствие Луми (кнопкой, позже — по лицу с камеры) */
-function renderWho() { const l = L(); $("whoHere").innerHTML = `<h2>${l.whoHere}</h2><div class="who">${S.kids.filter(k => k.name !== "Леона").map(k => `<button data-greet="${k.id}"><span class="av">${esc(k.name[0])}</span>${esc(k.name)}</button>`).join("")}</div>`; }
+function renderWho() { const l = L(); $("whoHere").innerHTML = `<h2><span>${l.whoHere}</span><button class="btn ghost" id="camBtn" style="padding:6px 14px;min-height:36px">${l.camBtn}</button></h2><div class="who">${S.kids.filter(k => k.name !== "Леона").map(k => `<button data-greet="${k.id}"><span class="av">${esc(k.name[0])}</span>${esc(k.name)}</button>`).join("")}</div>`; }
 function greet(kidId) {
   const l = L(), kid = S.kids.find(k => k.id === +kidId); if (!kid) return;
   const m = mode(), done = S.ritual.filter(r => r.kid_id === kid.id && r.mode === m).map(r => r.step);
@@ -848,7 +856,68 @@ function greet(kidId) {
   if ($("gGo")) $("gGo").onclick = () => { $("greetOv").classList.remove("open"); setView("kids"); };
 }
 window.lumiGreet = name => { const k = S.kids.find(x => x.name === name); if (k) greet(k.id); };
-$("whoHere").addEventListener("click", e => { const b = e.target.closest("[data-greet]"); if (b) greet(b.dataset.greet); });
+$("whoHere").addEventListener("click", e => { if (e.target.id === "camBtn") return openCam(); const b = e.target.closest("[data-greet]"); if (b) greet(b.dataset.greet); });
+
+/* ---------- камера: знакомство и узнавание (всё на устройстве, лица хранятся только в этом браузере) ---------- */
+const FA_URL = "https://cdn.jsdelivr.net/npm/@vladmandic/face-api@1.7.15/dist/face-api.esm.js";
+const FA_MODELS = "https://cdn.jsdelivr.net/npm/@vladmandic/face-api@1.7.15/model/";
+let fa = null, camStream = null, recogT = null; const lastSeen = {};
+async function faLoad() {
+  if (fa) return fa;
+  fa = await import(FA_URL);
+  await Promise.all([fa.nets.tinyFaceDetector.loadFromUri(FA_MODELS), fa.nets.faceLandmark68Net.loadFromUri(FA_MODELS), fa.nets.faceRecognitionNet.loadFromUri(FA_MODELS)]);
+  return fa;
+}
+async function camOn() {
+  if (camStream) return camStream;
+  camStream = await navigator.mediaDevices.getUserMedia({ video: { width: 640, height: 480 }, audio: false });
+  const v = $("camV"); v.srcObject = camStream; await v.play().catch(() => {});
+  return camStream;
+}
+const faces = () => store.get("fs-faces", {});
+async function descriptor() {
+  const det = await fa.detectSingleFace($("camV"), new fa.TinyFaceDetectorOptions({ inputSize: 320, scoreThreshold: .5 })).withFaceLandmarks().withFaceDescriptor();
+  return det ? Array.from(det.descriptor) : null;
+}
+function openCam() {
+  const l = L();
+  $("camP").innerHTML = `<h3>${l.camT}</h3><p class="sub" id="camS" style="margin:0">${l.camLoading}</p>
+    <div class="who">${S.kids.map(k => `<button data-enroll="${k.id}"><span class="av">${esc(k.name[0])}</span>${esc(k.name)}<small>${(faces()[k.id] || []).length ? " ✓" : ""}</small></button>`).join("")}</div>
+    <div style="display:flex;gap:10px;justify-content:flex-end"><button class="btn ghost" id="camReset">${l.camReset}</button><button class="btn" id="camClose">${l.closeT}</button></div>`;
+  $("camOv").classList.add("open");
+  $("camClose").onclick = () => $("camOv").classList.remove("open");
+  $("camReset").onclick = () => { store.set("fs-faces", {}); toast(l.camForgot); openCam(); };
+  (async () => {
+    try { await camOn(); $("camS").textContent = l.camOk; await faLoad(); $("camS").textContent = l.camReady; }
+    catch (e) { $("camS").textContent = l.camNo + " (" + (e.name || e.message) + ")"; }
+  })();
+}
+$("camP").addEventListener("click", async e => {
+  const b = e.target.closest("[data-enroll]"); if (!b) return; const l = L(), kid = S.kids.find(k => k.id === +b.dataset.enroll);
+  try {
+    await camOn(); await faLoad();
+    const got = [];
+    for (let i = 0; i < 12 && got.length < 5; i++) { $("camS").textContent = `${l.camLook} ${esc(kid.name)}… ${got.length}/5`; const d = await descriptor(); if (d) got.push(d); await new Promise(r => setTimeout(r, 500)); }
+    if (got.length < 3) { $("camS").textContent = l.camNoFace; return; }
+    const f = faces(); f[kid.id] = got; store.set("fs-faces", f);
+    $("camS").textContent = `${l.camSaved} ${kid.name}!`; chime([523, 659, 784]); startRecog(); setTimeout(openCam, 1200);
+  } catch (err) { $("camS").textContent = l.camNo + " (" + (err.name || err.message) + ")"; }
+});
+const dist = (a, b) => Math.sqrt(a.reduce((s, x, i) => s + (x - b[i]) ** 2, 0));
+async function recogTick() {
+  if (document.hidden || $("camOv").classList.contains("open") || $("nightOv").classList.contains("open")) return;
+  const f = faces(); if (!Object.keys(f).length) return;
+  const d = await descriptor(); if (!d) return;
+  let best = null, bd = 1;
+  for (const [id, arr] of Object.entries(f)) for (const x of arr) { const dd = dist(d, x); if (dd < bd) { bd = dd; best = id; } }
+  if (best && bd < .5 && Date.now() - (lastSeen[best] || 0) > 30 * 60000) { lastSeen[best] = Date.now(); const k = S.kids.find(x => x.id === +best); if (k && k.name !== "Леона") greet(k.id); }
+}
+async function startRecog() {
+  if (recogT || !Object.keys(faces()).length) return;
+  try { await camOn(); await faLoad(); recogT = setInterval(() => recogTick().catch(() => {}), 2000); } catch (e) { console.warn("cam", e); }
+}
+Object.assign(T.ru, { camT: "Знакомство с Луми", camLoading: "Включаю камеру…", camOk: "Камера работает. Загружаю распознавание…", camReady: "Готово. Нажмите на имя — пусть девочка посмотрит в камеру 3 секунды.", camNo: "Камера не найдена или нет доступа", camLook: "Смотрим в камеру:", camNoFace: "Лицо не увидела. Подойдите ближе к экрану и попробуйте ещё раз.", camSaved: "Запомнила:", camReset: "Забыть всех", camForgot: "Лица удалены", camBtn: "Познакомиться через камеру" });
+Object.assign(T.en, { camT: "Meet Lumi", camLoading: "Turning on the camera…", camOk: "Camera works. Loading recognition…", camReady: "Ready. Tap a name and look at the camera for 3 seconds.", camNo: "No camera or no access", camLook: "Look at the camera:", camNoFace: "No face seen. Come closer and try again.", camSaved: "Remembered:", camReset: "Forget everyone", camForgot: "Faces removed", camBtn: "Meet through the camera" });
 
 
 function spark(a) { if (a.length < 2) return ""; const W = 200, H = 60, mn = Math.min(...a), mx = Math.max(...a); const p = a.map((v, i) => [i * W / (a.length - 1), H - 6 - (v - mn) / ((mx - mn) || 1) * (H - 12)]); return `<svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="none"><polyline points="${p.map(x => x.join(",")).join(" ")}" fill="none" stroke="#ffb340" stroke-width="3" vector-effect="non-scaling-stroke"/></svg>`; }
@@ -1145,6 +1214,7 @@ async function afterLogin(user) {
   await loadAll();
   loadWeather();
   const nh = new Date().getHours(); if (nh >= 21 || nh < 6) setView("night");
+  startRecog();
 }
 $("loginF").addEventListener("submit", async e => {
   e.preventDefault(); $("loginMsg").textContent = "";
