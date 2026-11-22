@@ -304,6 +304,17 @@ body[data-tod=morning] .wx::after{background:linear-gradient(180deg,rgba(255,200
 .home .wear-row div{padding:6px 2px}
 .home .wear-row svg{width:28px;height:28px}
 .home .wear-tip{margin-top:0}
+/* небо: отдельные закат и ночь, мягкие облака */
+body[data-tod=evening] .wx::after{background:none}
+body[data-tod=evening][data-wx=clear] .wx{background:linear-gradient(180deg,#1f2d57 0%,#5b4a85 38%,#c9727a 72%,#f2b27a 100%);filter:none}
+body[data-tod=evening][data-wx=cloudy] .wx{background:linear-gradient(180deg,#2c3350 0%,#5a5878 50%,#a98a8f 100%);filter:none}
+body[data-tod=evening][data-wx=snow] .wx,body[data-tod=evening][data-wx=rain] .wx,body[data-tod=evening][data-wx=fog] .wx{filter:brightness(.7) saturate(.9)}
+body[data-tod=night] .wx{background:radial-gradient(120% 80% at 70% 0%,#24305c 0%,#101633 55%,#070a1a 100%)!important;filter:none}
+body[data-tod=night] .wx::after{background-image:radial-gradient(1.5px 1.5px at 40px 60px,#fff,transparent),radial-gradient(1px 1px at 130px 20px,#fff,transparent),radial-gradient(1.5px 1.5px at 220px 140px,rgba(255,255,255,.8),transparent),radial-gradient(1px 1px at 300px 80px,#fff,transparent);background-size:340px 220px;opacity:.6}
+body[data-wx=cloudy] .wx::after{background:radial-gradient(40% 18% at 15% 22%,rgba(255,255,255,.28),transparent 70%),radial-gradient(35% 15% at 60% 12%,rgba(255,255,255,.22),transparent 70%),radial-gradient(45% 20% at 85% 35%,rgba(255,255,255,.2),transparent 70%);filter:blur(8px)}
+.sched li.empty,.tasks li.empty{display:block;color:var(--faint)}
+.pspeed{position:absolute;right:16px;bottom:16px;z-index:3;font:500 14px Inter,sans-serif;color:#fff;background:rgba(20,20,30,.45);border:1px solid rgba(255,255,255,.3);border-radius:999px;padding:9px 16px;min-height:40px;cursor:pointer;backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px)}
+.pspeed:focus-visible{outline:2px solid #ffb340;outline-offset:2px}
 </style>
 </head>
 <body>
@@ -346,7 +357,7 @@ body[data-tod=morning] .wx::after{background:linear-gradient(180deg,rgba(255,200
       </article>
     </section>
     </section>
-    <div class="pslot glass" id="photoSlot"><div id="realPhotos"></div><div class="pempty" data-n="noPhotos">Фото из альбома «Луми» появятся здесь</div></div>
+    <div class="pslot glass" id="photoSlot"><div id="realPhotos"></div><button class="pspeed" id="pspeed" aria-label="Как часто менять фото"></button><div class="pempty" data-n="noPhotos">Фото из альбома «Луми» появятся здесь</div></div>
   </div>
 
   <section class="pane kids view" id="v-kids">
@@ -501,7 +512,7 @@ const T = {
     hSched: "Режим дня", hTasks: "Няне на сегодня", hCal: "Календарь", hWear: "Что надеть на улицу",
     logSub: "Дневник для няни", hCook: "Что приготовить сегодня", cookEx: "«Папе ✓» — без глютена и с низким содержанием жиров.",
     hShop: "Список покупок", addPh: "Добавить…", add: "Добавить", usual: "Обычно покупаем · оранжевые — пора купить", magnum: "Собрать корзину на magnum.kz",
-    hPhotos: "Фото для экрана", photoHelp: "На экране показываются только выбранные фото.", photoAdd: "С этого устройства", noPhotos: "Фото из альбома «Луми» появятся здесь", gPick: "Выбрать в Google Фото", gWait: "Выберите фото в открывшемся окне Google Фото и нажмите «Готово»…",
+    hPhotos: "Фото для экрана", photoHelp: "На экране показываются только выбранные фото.", photoAdd: "С этого устройства", noPhotos: "Фото из альбома «Луми» появятся здесь", every: "Смена каждые", sec: "сек", photoEvery: "Фото меняются каждые", gPick: "Выбрать в Google Фото", gWait: "Выберите фото в открывшемся окне Google Фото и нажмите «Готово»…",
     nExit: "Выйти из ночного режима", wake: "Коснитесь, чтобы включить", pinTitle: "Введите PIN", cancel: "Отмена",
     loginT: "Луми", loginPh: "Логин", passPh: "Пароль", login: "Войти", signup: "Создать аккаунт", signupDone: "Аккаунт создан. Напишите Claude, чтобы открыть доступ.",
     noAccess: "Вход выполнен, но доступа пока нет. Напишите Claude, чтобы добавить этот аккаунт в семью.", loginErr: "Не получилось войти: ",
@@ -525,7 +536,7 @@ const T = {
     hSched: "Today's routine", hTasks: "Nanny's to-do", hCal: "Calendar", hWear: "What to wear outside",
     logSub: "Log for the nanny", hCook: "What to cook today", cookEx: "“Dad ✓” = gluten-free and low in fat.",
     hShop: "Shopping list", addPh: "Add…", add: "Add", usual: "Usually bought · orange = time to buy", magnum: "Build a magnum.kz cart",
-    hPhotos: "Photos for the screen", photoHelp: "Only the photos you pick appear on the screen.", photoAdd: "From this device", noPhotos: "Photos from the «Луми» album will appear here", gPick: "Pick from Google Photos", gWait: "Pick photos in the Google Photos window and tap Done…",
+    hPhotos: "Photos for the screen", photoHelp: "Only the photos you pick appear on the screen.", photoAdd: "From this device", noPhotos: "Photos from the «Луми» album will appear here", every: "Next every", sec: "s", photoEvery: "Photos change every", gPick: "Pick from Google Photos", gWait: "Pick photos in the Google Photos window and tap Done…",
     nExit: "Leave night mode", wake: "Tap to wake", pinTitle: "Enter PIN", cancel: "Cancel",
     loginT: "Lumi", loginPh: "Login", passPh: "Password", login: "Sign in", signup: "Create account", signupDone: "Account created. Ask Claude to grant access.",
     noAccess: "Signed in, but no access yet. Ask Claude to add this account to the family.", loginErr: "Couldn't sign in: ",
@@ -593,7 +604,7 @@ function renderClock() {
 function renderSched() {
   const l = L(), d = new Date(), n = d.getHours() * 60 + d.getMinutes();
   const items = S.schedule.map(s => ({ ...s, m: +s.at.slice(0, 2) * 60 + +s.at.slice(3, 5) }));
-  if (!items.length) { $("sched").innerHTML = `<li>${l.emptySched}</li>`; return; }
+  if (!items.length) { $("sched").innerHTML = `<li class="empty">${l.emptySched}</li>`; return; }
   let cur = -1; items.forEach((s, i) => { if (s.m <= n) cur = i; });
   const start = Math.max(0, Math.min(cur - 1, items.length - 5));
   $("sched").innerHTML = items.slice(start, start + 5).map((s, k) => { const i = start + k; const c = i < cur ? "done" : i === cur ? "now" : ""; const title = lang === "en" && s.title_en ? s.title_en : s.title_ru; return `<li class="${c}"><time>${s.at.slice(0, 5)}</time><span>${esc(title)}</span><span class="who">${i === cur ? l.now : esc(s.who || "")}</span></li>`; }).join("");
@@ -889,6 +900,8 @@ $("magnum").addEventListener("click", () => toast(L().magnumToast));
 /* фото и видео: загруженные вручную + весь общий альбом «Луми» (обновляется сам); видео без звука.
    Вертикальные кадры собираются по 2–3 рядом, как в рамках — без обрезки и без пустых полей. */
 let SLIDES = [], slideT = null, slideI = -1, albumAt = 0;
+const SPEEDS = [5, 10, 20, 45, 60]; let slideSec = store.get("fs-slide", 10);
+function renderSpeed() { $("pspeed").textContent = `${L().every} ${slideSec} ${L().sec}`; }
 async function loadAlbum() {
   if (Date.now() - albumAt < 30 * 60000 && S.album) return;
   try { const { data } = await sb.functions.invoke("album", { method: "GET" }); if (data?.items) { S.album = data.items; albumAt = Date.now(); } } catch (e) { console.warn(e); }
@@ -913,16 +926,16 @@ const mediaUrl = (it, w) => it.own ? it.u : it.u + `=w${w}-h1440-no`;
 function fillLayer(layer, group, done) {
   layer.innerHTML = ""; layer.classList.toggle("multi", group.length > 1);
   const W = group.length > 1 ? Math.round(2560 / group.length) : 2560;
-  let left = group.length, ms = 12000, failed = false;
+  let left = group.length, ms = slideSec * 1000, failed = false;
   const ready = d => { if (failed) return; if (d < 0) { failed = true; return done(-1); } ms = Math.max(ms, d); if (--left === 0) done(ms); };
   group.forEach(it => {
     const cell = document.createElement("div"); cell.className = "pcell";
     if (it.v) {
       const v = document.createElement("video"); v.muted = true; v.playsInline = true; v.loop = group.length > 1; v.preload = "auto";
-      v.oncanplay = () => { v.oncanplay = null; v.play().catch(() => {}); ready(Math.min(45000, Math.max(8000, (v.duration || 15) * 1000))); };
+      v.oncanplay = () => { v.oncanplay = null; v.play().catch(() => {}); ready(Math.min(45000, Math.max(slideSec * 1000, (v.duration || 15) * 1000))); };
       v.onerror = () => ready(-1); v.src = it.u + "=dv"; cell.appendChild(v);
     } else {
-      const im = new Image(); im.alt = ""; im.onload = () => ready(12000); im.onerror = () => ready(-1); im.src = mediaUrl(it, W); cell.appendChild(im);
+      const im = new Image(); im.alt = ""; im.onload = () => ready(slideSec * 1000); im.onerror = () => ready(-1); im.src = mediaUrl(it, W); cell.appendChild(im);
     }
     layer.appendChild(cell);
   });
@@ -937,6 +950,7 @@ async function loadPhotoUrls() {
   if (SLIDES.length && first) { document.querySelectorAll(".photo.demo").forEach(p => p.remove()); $("realPhotos").innerHTML = `<div class="photo"></div><div class="photo"></div>`; slideI = -1; startSlides(); }
   else if (!SLIDES.length) startSlides();
 }
+$("pspeed").addEventListener("click", () => { slideSec = SPEEDS[(SPEEDS.indexOf(slideSec) + 1) % SPEEDS.length]; store.set("fs-slide", slideSec); renderSpeed(); toast(`${L().photoEvery} ${slideSec} ${L().sec}`); clearTimeout(slideT); slideT = setTimeout(nextSlide, slideSec * 1000); });
 function renderPhotoGrid(urls) { $("pgrid").innerHTML = urls.map(u => `<img src="${u}" alt="" loading="lazy">`).join(""); }
 function nextSlide() {
   clearTimeout(slideT); if (!SLIDES.length) return;
@@ -1070,7 +1084,7 @@ function applyLang() {
   document.querySelectorAll(".bar [data-l]").forEach(b => b.classList.toggle("on", b.dataset.l === lang));
   if (S.me) renderAll();
 }
-function renderAll() { renderClock(); renderSched(); renderTasks(); renderEvents(); renderPhrase(); renderWeather(); renderApps(); renderRit(); renderLog(); renderBaby(); renderGrowth(); renderHints(); applyTod(); renderIdeas(); renderShop(); renderWho(); }
+function renderAll() { renderClock(); renderSched(); renderTasks(); renderEvents(); renderPhrase(); renderWeather(); renderApps(); renderRit(); renderLog(); renderBaby(); renderGrowth(); renderHints(); applyTod(); renderIdeas(); renderShop(); renderWho(); renderSpeed(); }
 
 /* ---------- клавиатура ---------- */
 (() => {
