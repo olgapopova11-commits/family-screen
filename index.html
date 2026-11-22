@@ -321,6 +321,16 @@ body[data-wx=cloudy] .wx::after{background:radial-gradient(40% 18% at 15% 22%,rg
 .cam video{width:100%;aspect-ratio:4/3;border-radius:20px;background:#000;object-fit:cover;transform:scaleX(-1)}
 #camP{display:grid;gap:12px}
 #camOv{background:rgba(10,12,30,.5)}
+/* контраст: тёмное стекло читается на любом небе и фото */
+.glass{background:rgba(14,18,32,.36);border-color:rgba(255,255,255,.16);box-shadow:0 10px 40px rgba(0,0,0,.25),inset 0 1px 0 rgba(255,255,255,.18)}
+.hint{background:rgba(14,18,32,.36)}
+.nav.glass,.bar.glass{background:rgba(14,18,32,.5)}
+body[data-wx=fog] .wx{background:linear-gradient(180deg,#3d4752,#66717c 55%,#8d979f)}
+body[data-wx=cloudy] .wx{background:linear-gradient(180deg,#34465a,#5d7085 60%,#8597a9)}
+body[data-wx=snow] .wx{background:linear-gradient(180deg,#3f5571,#6f84a0 60%,#9fb1c6)}
+body[data-wx=clear] .wx{background:linear-gradient(180deg,#1f5fae 0%,#3f8bd6 55%,#8fc3ee 100%)}
+#realPhotos .pcell img,#realPhotos .pcell video{filter:saturate(1.12) contrast(1.04)}
+.home{height:calc(var(--vh,1vh)*100)}
 </style>
 </head>
 <body>
@@ -1227,6 +1237,14 @@ $("signupBtn").addEventListener("click", async () => {
   $("loginMsg").textContent = error ? L().loginErr + error.message : L().signupDone;
 });
 
+/* телевизор: браузер приставки видит экран «маленьким» (≈960px) — масштабируем макет под 1600px */
+function fitTV() {
+  const w = innerWidth, h = innerHeight, tv = !!window.fully || matchMedia("(pointer:none)").matches || matchMedia("(pointer:coarse)").matches && w > h;
+  const z = tv && w < 1500 && w > h ? w / 1600 : 1;
+  document.documentElement.style.zoom = z;
+  document.documentElement.style.setProperty("--vh", (h / z / 100) + "px");
+}
+fitTV(); addEventListener("resize", fitTV);
 applyLang();
 renderClock(); setInterval(() => { renderClock(); if (S.me) { renderSched(); renderLog(); renderBabyLive(); renderHints(); applyTod(); } }, 20000);
 setInterval(() => { if (S.me) { loadAll(); loadWeather(); } }, 10 * 60000);
