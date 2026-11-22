@@ -513,7 +513,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.4";
 const SB_URL = "https://svjlqxkqvvanclemddce.supabase.co";
 const SB_KEY = "sb_publishable_YHELTOfBVYlvmLKTAb99ww_RWTwf6bb";
 const sb = createClient(SB_URL, SB_KEY);
-const APP_VER = "1795360085";
+const APP_VER = "1795360165";
 /* новая версия на сайте — телевизор перезагрузится сам */
 setInterval(async () => { try { const t = await (await fetch("version.txt?" + Date.now(), { cache: "no-store" })).text(); const v = t.trim(); if (v && v !== APP_VER && new URLSearchParams(location.search).get("v") !== v && !document.querySelector(".ov.open:not(#nightOv)")) location.replace(location.pathname + "?v=" + v); } catch (e) {} }, 5 * 60000);
 /* ---------- Леона: контент по возрасту (месяцы) ---------- */
@@ -606,7 +606,7 @@ const store = { get(k, d) { try { const v = JSON.parse(localStorage.getItem(k));
 /* ---------- тексты ---------- */
 const T = {
   ru: {
-    vHome: "Главная", vApps: "Приложения", vKids: "Дети", vKitchen: "Кухня", vPhotos: "Фото", vNight: "Ночь",
+    vHome: "Главная", vApps: "Приложения", needJs: "Если не открылось: Fully → Settings → Advanced Web Settings → Enable JavaScript Interface", vKids: "Дети", vKitchen: "Кухня", vPhotos: "Фото", vNight: "Ночь",
     wLoading: "Загружаю погоду…", remT: "Сегодня понедельник", remS: "Соберите вещи в садик: сменка, пижама, запасная одежда", done: "Готово",
     phL: "Фраза дня на английском", ask: "Скажите «Луми» или нажмите", listening: "Слушаю… говорите", thinking: "Думаю…", askErr: "Не получилось ответить. Попробуйте ещё раз.", micErr: "Нет доступа к микрофону",
     hSched: "Режим дня", hTasks: "Няне на сегодня", hCal: "Календарь", hWear: "Что надеть на улицу",
@@ -630,7 +630,7 @@ const T = {
     almaty: "Алматы", later: "позже осадки"
   },
   en: {
-    vHome: "Home", vApps: "Apps", vKids: "Kids", vKitchen: "Kitchen", vPhotos: "Photos", vNight: "Night",
+    vHome: "Home", vApps: "Apps", needJs: "If it didn't open: Fully → Settings → Advanced Web Settings → Enable JavaScript Interface", vKids: "Kids", vKitchen: "Kitchen", vPhotos: "Photos", vNight: "Night",
     wLoading: "Loading weather…", remT: "It's Monday", remS: "Pack the kindergarten bag: indoor shoes, pyjamas, spare clothes", done: "Done",
     phL: "Phrase of the day in Russian", ask: "Say “Lumi” or tap", listening: "Listening… go ahead", thinking: "Thinking…", askErr: "Couldn't answer. Try again.", micErr: "No microphone access",
     hSched: "Today's routine", hTasks: "Nanny's to-do", hCal: "Calendar", hWear: "What to wear outside",
@@ -769,7 +769,8 @@ $("appsBig").addEventListener("click", e => { const b = e.target.closest(".app")
 $("apps").addEventListener("click", e => {
   const b = e.target.closest(".app"); if (!b) return; const a = APPS[+b.dataset.i];
   if (window.fully && a[3]) { a[3].startsWith("http") ? window.fully.loadUrl(a[3]) : window.fully.startApplication(a[3]); }
-  else { const url = a[3] && a[3].startsWith("http") ? a[3] : a[4]; if (url) window.open(url, "_blank"); else toast(L().noApp); }
+  else if (isTV() && a[3] && !a[3].startsWith("http")) { toast(L().needJs); location.href = `intent:#Intent;action=android.intent.action.MAIN;category=android.intent.category.LEANBACK_LAUNCHER;package=${a[3]};end`; }
+  else { const url = a[3] && a[3].startsWith("http") ? a[3] : a[4]; if (!url) return toast(L().noApp); if (isTV()) location.href = url; else window.open(url, "_blank"); }
 });
 
 /* ---------- дети ---------- */
