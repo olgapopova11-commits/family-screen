@@ -477,6 +477,9 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.4";
 const SB_URL = "https://svjlqxkqvvanclemddce.supabase.co";
 const SB_KEY = "sb_publishable_YHELTOfBVYlvmLKTAb99ww_RWTwf6bb";
 const sb = createClient(SB_URL, SB_KEY);
+const APP_VER = "1795354844";
+/* новая версия на сайте — телевизор перезагрузится сам */
+setInterval(async () => { try { const t = await (await fetch("version.txt?" + Date.now(), { cache: "no-store" })).text(); if (t.trim() && t.trim() !== APP_VER && !document.querySelector(".ov.open:not(#nightOv)")) location.reload(); } catch (e) {} }, 5 * 60000);
 /* ---------- Леона: контент по возрасту (месяцы) ---------- */
 const AGE = [
   { from: 6, to: 8,
@@ -929,6 +932,18 @@ async function startRecog() {
 Object.assign(T.ru, { camT: "Знакомство с Луми", camLoading: "Включаю камеру…", camOk: "Камера работает. Загружаю распознавание…", camReady: "Готово. Нажмите на имя — пусть девочка посмотрит в камеру 3 секунды.", camNo: "Камера не найдена или нет доступа", camLook: "Смотрим в камеру:", camNoFace: "Лицо не увидела. Подойдите ближе к экрану и попробуйте ещё раз.", camSaved: "Запомнила:", camReset: "Забыть всех", camForgot: "Лица удалены", camBtn: "Познакомиться через камеру" });
 Object.assign(T.en, { camT: "Meet Lumi", camLoading: "Turning on the camera…", camOk: "Camera works. Loading recognition…", camReady: "Ready. Tap a name and look at the camera for 3 seconds.", camNo: "No camera or no access", camLook: "Look at the camera:", camNoFace: "No face seen. Come closer and try again.", camSaved: "Remembered:", camReset: "Forget everyone", camForgot: "Faces removed", camBtn: "Meet through the camera" });
 
+/* ---------- самопроверка устройства: камера, микрофон, экран (пишется в базу, чтобы Claude мог проверить) ---------- */
+async function deviceCheck() {
+  const info = { ua: navigator.userAgent, fully: !!window.fully, w: innerWidth, h: innerHeight, dpr: devicePixelRatio, zoom: document.documentElement.style.zoom, ver: APP_VER };
+  try { const d = await navigator.mediaDevices.enumerateDevices(); info.devices = d.map(x => x.kind + ":" + (x.label || "?")); } catch (e) { info.devErr = e.name; }
+  try { const st = await navigator.mediaDevices.getUserMedia({ video: true }); info.camera = "ok " + st.getVideoTracks()[0].label; st.getTracks().forEach(t => t.stop()); } catch (e) { info.camera = "fail " + e.name + " " + e.message; }
+  try { const st = await navigator.mediaDevices.getUserMedia({ audio: true }); const tr = st.getAudioTracks()[0]; info.mic = "ok " + tr.label;
+    try { const ac = new AudioContext(), an = ac.createAnalyser(); ac.createMediaStreamSource(st).connect(an); const buf = new Uint8Array(an.fftSize); let peak = 0; for (let i = 0; i < 20; i++) { await new Promise(r => setTimeout(r, 100)); an.getByteTimeDomainData(buf); for (const v of buf) peak = Math.max(peak, Math.abs(v - 128)); } info.micLevel = peak; ac.close(); } catch (e) {}
+    st.getTracks().forEach(t => t.stop()); } catch (e) { info.mic = "fail " + e.name + " " + e.message; }
+  try { await sb.from("device_status").insert({ info }); } catch (e) {}
+  return info;
+}
+
 
 function spark(a) { if (a.length < 2) return ""; const W = 200, H = 60, mn = Math.min(...a), mx = Math.max(...a); const p = a.map((v, i) => [i * W / (a.length - 1), H - 6 - (v - mn) / ((mx - mn) || 1) * (H - 12)]); return `<svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="none"><polyline points="${p.map(x => x.join(",")).join(" ")}" fill="none" stroke="#ffb340" stroke-width="3" vector-effect="non-scaling-stroke"/></svg>`; }
 function renderGrowth() {
@@ -1224,7 +1239,7 @@ async function afterLogin(user) {
   await loadAll();
   loadWeather();
   const nh = new Date().getHours(); if (nh >= 21 || nh < 6) setView("night");
-  startRecog();
+  if (window.fully || new URLSearchParams(location.search).has("check")) deviceCheck().finally(() => startRecog()); else startRecog();
 }
 $("loginF").addEventListener("submit", async e => {
   e.preventDefault(); $("loginMsg").textContent = "";
