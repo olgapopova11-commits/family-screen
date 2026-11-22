@@ -829,37 +829,50 @@ $("addForm").addEventListener("submit", e => { e.preventDefault(); let v = $("ad
 $("magnum").addEventListener("click", () => toast(L().magnumToast));
 
 /* ---------- фото ---------- */
-/* фото: загруженные вручную + весь общий альбом «Луми» (обновляется сам) */
+/* фото и видео: загруженные вручную + весь общий альбом «Луми» (обновляется сам); видео без звука */
 let ALL = [], slideT = null, slideI = 0, albumAt = 0;
 async function loadAlbum() {
   if (Date.now() - albumAt < 30 * 60000 && S.album) return;
-  try { const { data } = await sb.functions.invoke("album", { method: "GET" }); if (data?.urls) { S.album = data.urls; albumAt = Date.now(); } } catch (e) { console.warn(e); }
+  try { const { data } = await sb.functions.invoke("album", { method: "GET" }); if (data?.urls) { S.album = data.urls; S.albumVid = new Set(data.videos || []); albumAt = Date.now(); } } catch (e) { console.warn(e); }
+}
+const LAYER = `<div class="photo"><img alt="" style="width:100%;height:100%;object-fit:cover"><video muted playsinline preload="auto" style="width:100%;height:100%;object-fit:cover;display:none"></video></div>`;
+function showIn(layer, it, done) {
+  const img = layer.querySelector("img"), vid = layer.querySelector("video");
+  if (it.v) {
+    img.style.display = "none"; vid.style.display = "block"; vid.muted = true; vid.src = it.u + "=dv";
+    vid.oncanplay = () => { vid.oncanplay = null; vid.play().catch(() => {}); done(Math.min(45000, Math.max(8000, (vid.duration || 15) * 1000))); };
+    vid.onerror = () => { vid.onerror = null; done(-1); };
+  } else {
+    vid.pause(); vid.removeAttribute("src"); vid.style.display = "none"; img.style.display = "block";
+    img.onload = () => { img.onload = null; done(12000); }; img.onerror = () => { img.onerror = null; done(-1); }; img.src = it.u;
+  }
 }
 async function loadPhotoUrls() {
   let own = [];
-  if (S.photos.length) { const { data } = await sb.storage.from("photos").createSignedUrls(S.photos.map(p => p.path), 60 * 60 * 12); own = (data || []).filter(x => x.signedUrl).map(x => x.signedUrl); }
+  if (S.photos.length) { const { data } = await sb.storage.from("photos").createSignedUrls(S.photos.map(p => p.path), 60 * 60 * 12); own = (data || []).filter(x => x.signedUrl).map(x => ({ u: x.signedUrl, v: false })); }
   await loadAlbum();
-  const alb = (S.album || []).map(u => u + "=w2560-h1440-no");
+  const alb = (S.album || []).map(u => S.albumVid?.has(u) ? { u, v: true } : { u: u + "=w2560-h1440-no", v: false });
   const mix = [...own, ...alb]; for (let k = mix.length - 1; k > 0; k--) { const r = Math.floor(Math.random() * (k + 1)); [mix[k], mix[r]] = [mix[r], mix[k]]; }
-  ALL = mix;
-  renderPhotoGrid([...own, ...(S.album || []).map(u => u + "=w400-h400-c")].slice(0, 120));
-  if (ALL.length) { document.querySelectorAll(".photo.demo").forEach(p => p.remove()); if (!$("realPhotos").children.length) { $("realPhotos").innerHTML = `<div class="photo on"><img alt="" style="width:100%;height:100%;object-fit:cover"></div><div class="photo"><img alt="" style="width:100%;height:100%;object-fit:cover"></div>`; slideI = 0; $("realPhotos").querySelector(".photo.on img").src = ALL[0]; } }
-  startSlides();
+  const first = !ALL.length; ALL = mix;
+  renderPhotoGrid([...own.map(x => x.u), ...(S.album || []).map(u => u + "=w400-h400-c-no")].slice(0, 120));
+  if (ALL.length && first) { document.querySelectorAll(".photo.demo").forEach(p => p.remove()); $("realPhotos").innerHTML = LAYER + LAYER; slideI = -1; startSlides(); }
+  else if (!ALL.length) startSlides();
 }
 function renderPhotoGrid(urls) { $("pgrid").innerHTML = urls.map(u => `<img src="${u}" alt="" loading="lazy">`).join(""); }
+function nextSlide() {
+  clearTimeout(slideT); if (!ALL.length) return;
+  const layers = [...$("realPhotos").children]; const cur = layers.find(x => x.classList.contains("on")), nxt = layers.find(x => x !== cur);
+  slideI = (slideI + 1) % ALL.length;
+  showIn(nxt, ALL[slideI], ms => {
+    if (ms < 0) { slideT = setTimeout(nextSlide, 300); return; }
+    cur?.classList.remove("on"); nxt.classList.add("on");
+    setTimeout(() => { const v = cur?.querySelector("video"); if (v) v.pause(); }, 2100);
+    slideT = setTimeout(nextSlide, ms);
+  });
+}
 function startSlides() {
-  clearInterval(slideT);
-  if (ALL.length) {
-    $("dots").innerHTML = "";
-    if (ALL.length < 2) return;
-    slideT = setInterval(() => {
-      const layers = [...$("realPhotos").children]; const cur = layers.find(x => x.classList.contains("on")), nxt = layers.find(x => x !== cur);
-      slideI = (slideI + 1) % ALL.length; const img = nxt.querySelector("img");
-      img.onload = () => { cur.classList.remove("on"); nxt.classList.add("on"); img.onload = null; }; img.src = ALL[slideI];
-      const pre = new Image(); pre.src = ALL[(slideI + 1) % ALL.length];
-    }, 12000);
-    return;
-  }
+  clearTimeout(slideT); clearInterval(slideT);
+  if (ALL.length) { $("dots").innerHTML = ""; nextSlide(); return; }
   const ph = [...document.querySelectorAll(".photo")]; let p = 0;
   $("dots").innerHTML = ph.length > 1 ? ph.slice(0, 12).map((_, i) => `<i class="${i === 0 ? "on" : ""}"></i>`).join("") : "";
   ph.forEach((x, i) => x.classList.toggle("on", i === 0));
