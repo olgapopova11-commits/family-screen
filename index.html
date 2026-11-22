@@ -513,7 +513,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.4";
 const SB_URL = "https://svjlqxkqvvanclemddce.supabase.co";
 const SB_KEY = "sb_publishable_YHELTOfBVYlvmLKTAb99ww_RWTwf6bb";
 const sb = createClient(SB_URL, SB_KEY);
-const APP_VER = "1795360165";
+const APP_VER = "1795360203";
 /* новая версия на сайте — телевизор перезагрузится сам */
 setInterval(async () => { try { const t = await (await fetch("version.txt?" + Date.now(), { cache: "no-store" })).text(); const v = t.trim(); if (v && v !== APP_VER && new URLSearchParams(location.search).get("v") !== v && !document.querySelector(".ov.open:not(#nightOv)")) location.replace(location.pathname + "?v=" + v); } catch (e) {} }, 5 * 60000);
 /* ---------- Леона: контент по возрасту (месяцы) ---------- */
@@ -958,12 +958,12 @@ function greetAdult(name) {
   let msg;
   if (name === "Няня") msg = en ? `Hello! Tasks for today: ${open.length ? open.map(t => t.text).join(", ") : "none yet"}.` : `Здравствуйте! Задачи на сегодня: ${open.length ? open.map(t => t.text).join(", ") : "пока нет"}.`;
   else if (name === "Лёша") msg = en ? `Hi Lyosha! Dinner idea: ${r ? (r.title_en || r.title) : "check the Kitchen tab"}.` : `Лёша, привет! Идея на ужин: ${r ? r.title : "загляни на Кухню"}.`;
-  else msg = en ? `Hi Olya! ${open.length} tasks for the nanny${ev ? `, next: ${ev.title}` : ""}.` : `Оля, привет! У няни ${open.length} задач${ev ? `, ближайшее: ${ev.title}` : ""}.`;
+  else { if (!open.length && !ev) return; msg = en ? `Hi Olya!${open.length ? ` The nanny has ${open.length} open task${open.length > 1 ? "s" : ""}.` : ""}${ev ? ` Next: ${ev.title}.` : ""}` : `Оля, привет!${open.length ? ` У няни ещё ${open.length} ${open.length === 1 ? "задача" : open.length < 5 ? "задачи" : "задач"}.` : ""}${ev ? ` Ближайшее: ${ev.title}.` : ""}`; }
   bubble("", msg); speak(msg, lang); chime([523, 659, 784]);
 }
 const FA_URL = "https://cdn.jsdelivr.net/npm/@vladmandic/face-api@1.7.15/dist/face-api.esm.js";
 const FA_MODELS = "https://cdn.jsdelivr.net/npm/@vladmandic/face-api@1.7.15/model/";
-let fa = null, camStream = null, recogT = null; const lastSeen = {};
+let fa = null, camStream = null, recogT = null; const lastSeen = store.get("fs-seen", {});
 async function faLoad() {
   if (fa) return fa;
   fa = await import(FA_URL);
@@ -978,7 +978,7 @@ async function camOn() {
 }
 const faces = () => store.get("fs-faces", {});
 async function descriptor() {
-  const det = await fa.detectSingleFace($("camV"), new fa.TinyFaceDetectorOptions({ inputSize: 320, scoreThreshold: .5 })).withFaceLandmarks().withFaceDescriptor();
+  const det = await fa.detectSingleFace($("camV"), new fa.TinyFaceDetectorOptions({ inputSize: 256, scoreThreshold: .55 })).withFaceLandmarks().withFaceDescriptor();
   return det ? Array.from(det.descriptor) : null;
 }
 function openCam() {
@@ -1012,11 +1012,12 @@ async function recogTick() {
   const d = await descriptor(); if (!d) return;
   let best = null, bd = 1;
   for (const [id, arr] of Object.entries(f)) for (const x of arr) { const dd = dist(d, x); if (dd < bd) { bd = dd; best = id; } }
-  if (best && bd < .5 && Date.now() - (lastSeen[best] || 0) > 30 * 60000) { lastSeen[best] = Date.now(); if (best.startsWith("a:")) greetAdult(best.slice(2)); else { const k = S.kids.find(x => x.id === +best); if (k && k.name !== "Леона") greet(k.id); } }
+  const cool = best && best.startsWith("a:") ? 4 * 3600000 : 2 * 3600000;
+  if (best && bd < .48 && Date.now() - (lastSeen[best] || 0) > cool) { lastSeen[best] = Date.now(); store.set("fs-seen", lastSeen); if (best.startsWith("a:")) greetAdult(best.slice(2)); else { const k = S.kids.find(x => x.id === +best); if (k && k.name !== "Леона") greet(k.id); } }
 }
 async function startRecog() {
   if (recogT || !Object.keys(faces()).length) return;
-  try { await camOn(); await faLoad(); recogT = setInterval(() => recogTick().catch(() => {}), 2000); } catch (e) { console.warn("cam", e); }
+  try { await camOn(); await faLoad(); recogT = setInterval(() => { if (!document.querySelector("#v-home.on, #v-kids.on")) return; recogTick().catch(() => {}); }, 5000); } catch (e) { console.warn("cam", e); }
 }
 Object.assign(T.ru, { camT: "Знакомство с Луми", camLoading: "Включаю камеру…", camOk: "Камера работает. Загружаю распознавание…", camReady: "Готово. Нажмите на имя — пусть девочка посмотрит в камеру 3 секунды.", camNo: "Камера не найдена или нет доступа", camLook: "Смотрим в камеру:", camNoFace: "Лицо не увидела. Подойдите ближе к экрану и попробуйте ещё раз.", camSaved: "Запомнила:", camReset: "Забыть всех", camForgot: "Лица удалены", camBtn: "Познакомиться через камеру" });
 Object.assign(T.en, { camT: "Meet Lumi", camLoading: "Turning on the camera…", camOk: "Camera works. Loading recognition…", camReady: "Ready. Tap a name and look at the camera for 3 seconds.", camNo: "No camera or no access", camLook: "Look at the camera:", camNoFace: "No face seen. Come closer and try again.", camSaved: "Remembered:", camReset: "Forget everyone", camForgot: "Faces removed", camBtn: "Meet through the camera" });
