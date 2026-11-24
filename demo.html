@@ -569,7 +569,7 @@ function createClient() { return { from: B, auth: { getSession: async () => ({ d
 const SB_URL = "https://svjlqxkqvvanclemddce.supabase.co";
 const SB_KEY = "sb_publishable_YHELTOfBVYlvmLKTAb99ww_RWTwf6bb";
 const sb = createClient(SB_URL, SB_KEY);
-const APP_VER = "1795518937";
+const APP_VER = "1795519288";
 /* новая версия на сайте — телевизор перезагрузится сам */
 setInterval(async () => { try { const t = await (await fetch("version.txt?" + Date.now(), { cache: "no-store" })).text(); const v = t.trim(); if (v && v !== APP_VER && new URLSearchParams(location.search).get("v") !== v && !document.querySelector(".ov.open:not(#nightOv)")) location.replace(location.pathname + "?v=" + v); } catch (e) {} }, 5 * 60000);
 /* ---------- Леона: контент по возрасту (месяцы) ---------- */
@@ -1148,7 +1148,7 @@ function bdayText() {
   $("bdNo").textContent = en ? "Not her" : `Это не ${k.name}`;
 }
 const bdNot = () => store.get("fs-bdnot", {});
-function bdayList() { const not = bdNot(); const m = BD.match.filter(it => !not[it.u]); return m.length >= 3 ? m : BD.pool.filter(it => !not[it.u]); }
+function bdayList() { const not = bdNot(); const m = BD.match.filter(it => !not[it.p || it.u]); return m.length >= 3 ? m : BD.pool.filter(it => !not[it.p || it.u]); }
 function bdayShow() {
   const list = bdayList(); if (!list.length) return;
   const it = list[BD.i++ % list.length]; BD.cur = it;
@@ -1196,7 +1196,11 @@ async function bdayCheck() {
   if (!el.classList.contains("on")) {
     BD.kid = k; await loadAlbum();
     BD.pool = shuffle((S.album || []).filter(it => !it.v && !(S.hidden && S.hidden.has(it.u))));
-    try { const r = await q(sb.from("settings").select("value").eq("key", "faces_" + k.id)); const ts = (r[0] && r[0].value) || [];
+    try { const { data: fl } = await sb.storage.from("photos").list("bday/" + k.id, { limit: 300 });
+      const paths = (fl || []).filter(f => /\.jpg$/.test(f.name)).map(f => `bday/${k.id}/${f.name}`);
+      if (paths.length) { const { data: su } = await sb.storage.from("photos").createSignedUrls(paths, 60 * 60 * 24); const own = (su || []).filter(x => x.signedUrl).map(x => ({ u: x.signedUrl, p: x.path, own: true, v: false })); if (own.length >= 3) { BD.pool = shuffle(own); BD.byPhotos = true; } }
+    } catch (e) {}
+    if (!BD.byPhotos) try { const r = await q(sb.from("settings").select("value").eq("key", "faces_" + k.id)); const ts = (r[0] && r[0].value) || [];
       const near = t => { let lo = 0, hi = ts.length - 1; while (lo <= hi) { const m = (lo + hi) >> 1; if (Math.abs(ts[m] - t) <= 20) return true; if (ts[m] < t) lo = m + 1; else hi = m - 1; } return false; };
       if (ts.length) { BD.match = BD.pool.filter(it => it.t && near(Math.round(it.t / 1000))); BD.byPhotos = BD.match.length >= 3; } } catch (e) {}
     bdayText(); el.classList.add("on"); confetti(); bdayShow(); clearInterval(BD.t); BD.t = setInterval(bdayShow, 7000);
@@ -1204,7 +1208,7 @@ async function bdayCheck() {
   }
 }
 $("bdX").onclick = () => { BD.hideTill = Date.now() + 15 * 60000; bdayCheck(); };
-$("bdNo").onclick = () => { if (!BD.cur) return; const n = bdNot(); n[BD.cur.u] = 1; store.set("fs-bdnot", n); bdayShow(); };
+$("bdNo").onclick = () => { if (!BD.cur) return; const n = bdNot(); n[BD.cur.p || BD.cur.u] = 1; store.set("fs-bdnot", n); bdayShow(); };
 setTimeout(bdayCheck, 2500); setInterval(bdayCheck, 20000);
 document.getElementById("nav").addEventListener("click", () => setTimeout(bdayCheck, 50));
 
