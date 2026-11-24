@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Луми</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@200;300;400;500;600;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@200;300;400;500;600;700&family=Lobster&display=swap" rel="stylesheet">
 <style>
 /*
 VOICE: спокойный, домашний, как режим StandBy на iPhone — крупно, тихо, без суеты.
@@ -365,6 +365,21 @@ body[data-tod=night][data-wx=fog] .wx,body[data-tod=evening][data-wx=fog] .wx{ba
 .bigapps .app:focus-visible,.bigapps .app:hover{outline:3px solid #ffb340;outline-offset:2px}
 .greetline{margin-top:14px;font-size:clamp(20px,1.8vw,30px);font-weight:600;opacity:0;transform:translateY(6px);transition:.6s;min-height:1.2em}
 .greetline.show{opacity:1;transform:none}
+
+/* ---------- день рождения ---------- */
+#bday{position:fixed;inset:0;z-index:60;display:none;overflow:hidden;background:radial-gradient(120% 90% at 50% 0%,#ffd6e8 0%,#ff9cc7 45%,#f472b6 100%)}
+#bday.on{display:block}
+#bdayC{position:absolute;inset:0;width:100%;height:100%;pointer-events:none;z-index:3}
+.bd-txt{position:absolute;left:4%;top:0;bottom:0;width:40%;display:flex;flex-direction:column;justify-content:center;z-index:2;color:#fff;text-shadow:0 4px 24px rgba(190,24,93,.45)}
+.bd-t1{font-family:Lobster,cursive;font-size:calc(var(--vh,1vh)*11);line-height:1.05}
+.bd-t2{margin-top:calc(var(--vh,1vh)*3);font-size:calc(var(--vh,1vh)*5);font-weight:600;opacity:.95}
+.bd-ph{position:absolute;right:5%;top:8%;bottom:8%;width:48%;z-index:2}
+.bd-f{position:absolute;inset:0;margin:auto;display:flex;align-items:center;justify-content:center;opacity:0;transform:scale(.94) rotate(var(--r,0deg));transition:opacity 1.4s ease,transform 1.4s ease}
+.bd-f.on{opacity:1;transform:scale(1) rotate(var(--r,0deg))}
+.bd-f img{max-width:100%;max-height:100%;border:calc(var(--vh,1vh)*1.4) solid #fff;border-radius:18px;box-shadow:0 20px 60px rgba(157,23,77,.45);background:#fff}
+.bd-x,.bd-no{position:absolute;z-index:4;border:0;border-radius:999px;background:rgba(255,255,255,.35);color:#fff;font:600 16px Inter,sans-serif;padding:10px 16px;cursor:pointer}
+.bd-x{top:18px;right:18px}.bd-no{bottom:18px;right:18px;opacity:.7}
+.bd-x:focus,.bd-no:focus{outline:3px solid #fff}
 </style>
 </head>
 <body>
@@ -487,6 +502,11 @@ body[data-tod=night][data-wx=fog] .wx,body[data-tod=evening][data-wx=fog] .wx{ba
   <div class="wake" data-n="wake">Коснитесь, чтобы включить</div>
 </div>
 
+<div id="bday" aria-hidden="true"><canvas id="bdayC"></canvas>
+  <div class="bd-txt"><div class="bd-t1" id="bdT1"></div><div class="bd-t2" id="bdT2"></div></div>
+  <div class="bd-ph" id="bdPh"><div class="bd-f"></div><div class="bd-f"></div></div>
+  <button class="bd-x" id="bdX">✕</button><button class="bd-no" id="bdNo"></button>
+</div>
 <div class="ov" id="greetOv" role="dialog" aria-modal="true">
   <div class="glass formp greet" id="greetP"></div>
 </div>
@@ -516,7 +536,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.4";
 const SB_URL = "https://svjlqxkqvvanclemddce.supabase.co";
 const SB_KEY = "sb_publishable_YHELTOfBVYlvmLKTAb99ww_RWTwf6bb";
 const sb = createClient(SB_URL, SB_KEY);
-const APP_VER = "1795361043";
+const APP_VER = "1795518285";
 /* новая версия на сайте — телевизор перезагрузится сам */
 setInterval(async () => { try { const t = await (await fetch("version.txt?" + Date.now(), { cache: "no-store" })).text(); const v = t.trim(); if (v && v !== APP_VER && new URLSearchParams(location.search).get("v") !== v && !document.querySelector(".ov.open:not(#nightOv)")) location.replace(location.pathname + "?v=" + v); } catch (e) {} }, 5 * 60000);
 /* ---------- Леона: контент по возрасту (месяцы) ---------- */
@@ -1079,6 +1099,78 @@ async function startWake() {
     [20000, 60000, 120000].forEach(ms => setTimeout(async () => { try { await sb.from("device_status").insert({ info: { stage: "wake-state", ua: navigator.userAgent, ac: ac.state, heardAny: wake.heard || 0, texts: wake.texts || [] } }); } catch (e) {} }, ms));
   } catch (e) { wake.on = false; console.warn("wake", e); try { await sb.from("device_status").insert({ info: { stage: "wake-fail", err: String(e), ua: navigator.userAgent } }); } catch (e2) {} }
 }
+
+/* ---------- день рождения: праздничный главный экран с фото именинника ---------- */
+const BD = { kid: null, pool: [], match: [], i: 0, t: null, raf: 0, hideTill: 0, scan: false };
+function bdayKid() {
+  const p = new URLSearchParams(location.search).get("bday"), n = new Date();
+  return S.kids.find(k => p ? k.name === p : k.birth_date && (([y, m, d]) => +m === n.getMonth() + 1 && +d === n.getDate())(k.birth_date.split("-")));
+}
+function bdayAge(k) { const n = new Date(), y = +k.birth_date.split("-")[0]; return n.getFullYear() - y; }
+function ruYears(a) { const m10 = a % 10, m100 = a % 100; return m10 === 1 && m100 !== 11 ? "годик" : m10 >= 2 && m10 <= 4 && (m100 < 10 || m100 >= 20) ? "годика" : "лет"; }
+function bdayText() {
+  const k = BD.kid, a = bdayAge(k), en = lang === "en";
+  $("bdT1").textContent = en ? `Happy Birthday, ${k.name === "Аурика" ? "Aurika" : k.name}!` : `С днём рождения, ${k.name}!`;
+  $("bdT2").textContent = en ? `${a} today 🎂` : `Сегодня ${a} ${ruYears(a)} 🎂`;
+  $("bdNo").textContent = en ? "Not her" : `Это не ${k.name}`;
+}
+const bdNot = () => store.get("fs-bdnot", {});
+function bdayList() { const not = bdNot(); const m = BD.match.filter(it => !not[it.u]); return m.length >= 3 ? m : BD.pool.filter(it => !not[it.u]); }
+function bdayShow() {
+  const list = bdayList(); if (!list.length) return;
+  const it = list[BD.i++ % list.length]; BD.cur = it;
+  const fr = [...document.querySelectorAll("#bdPh .bd-f")], nx = fr.find(f => !f.classList.contains("on")) || fr[0], old = fr.find(f => f !== nx);
+  const im = new Image(); im.alt = ""; im.onload = () => { nx.innerHTML = ""; nx.appendChild(im); nx.style.setProperty("--r", (BD.i % 2 ? -2.5 : 2.5) + "deg"); nx.classList.add("on"); old && old.classList.remove("on"); };
+  im.onerror = () => setTimeout(bdayShow, 300); im.src = mediaUrl(it, 1600);
+}
+function confetti() {
+  const c = $("bdayC"), x = c.getContext("2d"), cols = ["#fff", "#fde047", "#f9a8d4", "#be185d", "#a7f3d0", "#c4b5fd", "#fb7185"];
+  const P = Array.from({ length: /Android/.test(navigator.userAgent) ? 90 : 160 }, () => ({ x: Math.random(), y: Math.random() * 1.1 - .1, s: 8 + Math.random() * 12, v: .0008 + Math.random() * .0016, r: Math.random() * 6, vr: (Math.random() - .5) * .12, w: Math.random() * 6, c: cols[Math.random() * cols.length | 0], o: Math.random() < .25 }));
+  let last = 0;
+  const step = t => {
+    BD.raf = requestAnimationFrame(step); if (t - last < 33) return; last = t;
+    const W = c.width = c.clientWidth, H = c.height = c.clientHeight; x.clearRect(0, 0, W, H);
+    for (const p of P) {
+      p.y += p.v; p.r += p.vr; p.w += .03; if (p.y > 1.05) { p.y = -.05; p.x = Math.random(); }
+      x.save(); x.translate((p.x + Math.sin(p.w) * .02) * W, p.y * H); x.rotate(p.r); x.fillStyle = p.c;
+      if (p.o) { x.beginPath(); x.arc(0, 0, p.s / 2.4, 0, 7); x.fill(); } else x.fillRect(-p.s / 2, -p.s / 4, p.s, p.s / 2 * Math.abs(Math.cos(p.r * 2)) + 2);
+      x.restore();
+    }
+  };
+  cancelAnimationFrame(BD.raf); BD.raf = requestAnimationFrame(step);
+}
+async function bdayScan() {
+  // если лицо именинника знакомо камере — оставляем только её фото (проверка идёт на устройстве)
+  const ref = faces()[String(BD.kid.id)]; if (!ref || BD.scan) return; BD.scan = true;
+  const key = "fs-bdscan-" + BD.kid.id, memo = store.get(key, {});
+  BD.match = BD.pool.filter(it => memo[it.u] === 1);
+  try { await faLoad(); } catch (e) { return; }
+  for (const it of BD.pool) {
+    if (memo[it.u] != null) continue;
+    try {
+      const im = new Image(); im.crossOrigin = "anonymous"; im.src = mediaUrl(it, 800); await im.decode();
+      const ds = await fa.detectAllFaces(im, new fa.TinyFaceDetectorOptions({ inputSize: 416, scoreThreshold: .4 })).withFaceLandmarks().withFaceDescriptors();
+      const ok = ds.some(d => ref.some(r => dist(Array.from(d.descriptor), r) < .52));
+      memo[it.u] = ok ? 1 : 0; if (ok) BD.match.push(it); store.set(key, memo);
+    } catch (e) { memo[it.u] = 0; }
+    await new Promise(r => setTimeout(r, 400));
+  }
+}
+async function bdayCheck() {
+  const k = bdayKid(), el = $("bday");
+  const show = k && Date.now() > BD.hideTill && document.querySelector("#v-home.on") && !$("nightOv").classList.contains("open");
+  if (!show) { if (el.classList.contains("on")) { el.classList.remove("on"); cancelAnimationFrame(BD.raf); clearInterval(BD.t); BD.t = null; } return; }
+  if (!el.classList.contains("on")) {
+    BD.kid = k; await loadAlbum();
+    BD.pool = shuffle((S.album || []).filter(it => !it.v && !(S.hidden && S.hidden.has(it.u))));
+    bdayText(); el.classList.add("on"); confetti(); bdayShow(); clearInterval(BD.t); BD.t = setInterval(bdayShow, 7000);
+    bdayScan();
+  }
+}
+$("bdX").onclick = () => { BD.hideTill = Date.now() + 15 * 60000; bdayCheck(); };
+$("bdNo").onclick = () => { if (!BD.cur) return; const n = bdNot(); n[BD.cur.u] = 1; store.set("fs-bdnot", n); bdayShow(); };
+setTimeout(bdayCheck, 2500); setInterval(bdayCheck, 20000);
+document.getElementById("nav").addEventListener("click", () => setTimeout(bdayCheck, 50));
 
 
 function spark(a) { if (a.length < 2) return ""; const W = 200, H = 60, mn = Math.min(...a), mx = Math.max(...a); const p = a.map((v, i) => [i * W / (a.length - 1), H - 6 - (v - mn) / ((mx - mn) || 1) * (H - 12)]); return `<svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="none"><polyline points="${p.map(x => x.join(",")).join(" ")}" fill="none" stroke="#ffb340" stroke-width="3" vector-effect="non-scaling-stroke"/></svg>`; }
