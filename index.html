@@ -536,7 +536,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.4";
 const SB_URL = "https://svjlqxkqvvanclemddce.supabase.co";
 const SB_KEY = "sb_publishable_YHELTOfBVYlvmLKTAb99ww_RWTwf6bb";
 const sb = createClient(SB_URL, SB_KEY);
-const APP_VER = "1795518285";
+const APP_VER = "1795518937";
 /* новая версия на сайте — телевизор перезагрузится сам */
 setInterval(async () => { try { const t = await (await fetch("version.txt?" + Date.now(), { cache: "no-store" })).text(); const v = t.trim(); if (v && v !== APP_VER && new URLSearchParams(location.search).get("v") !== v && !document.querySelector(".ov.open:not(#nightOv)")) location.replace(location.pathname + "?v=" + v); } catch (e) {} }, 5 * 60000);
 /* ---------- Леона: контент по возрасту (месяцы) ---------- */
@@ -1141,7 +1141,7 @@ function confetti() {
 }
 async function bdayScan() {
   // если лицо именинника знакомо камере — оставляем только её фото (проверка идёт на устройстве)
-  const ref = faces()[String(BD.kid.id)]; if (!ref || BD.scan) return; BD.scan = true;
+  const ref = faces()[String(BD.kid.id)]; if (BD.byPhotos || !ref || BD.scan) return; BD.scan = true;
   const key = "fs-bdscan-" + BD.kid.id, memo = store.get(key, {});
   BD.match = BD.pool.filter(it => memo[it.u] === 1);
   try { await faLoad(); } catch (e) { return; }
@@ -1163,6 +1163,9 @@ async function bdayCheck() {
   if (!el.classList.contains("on")) {
     BD.kid = k; await loadAlbum();
     BD.pool = shuffle((S.album || []).filter(it => !it.v && !(S.hidden && S.hidden.has(it.u))));
+    try { const r = await q(sb.from("settings").select("value").eq("key", "faces_" + k.id)); const ts = (r[0] && r[0].value) || [];
+      const near = t => { let lo = 0, hi = ts.length - 1; while (lo <= hi) { const m = (lo + hi) >> 1; if (Math.abs(ts[m] - t) <= 20) return true; if (ts[m] < t) lo = m + 1; else hi = m - 1; } return false; };
+      if (ts.length) { BD.match = BD.pool.filter(it => it.t && near(Math.round(it.t / 1000))); BD.byPhotos = BD.match.length >= 3; } } catch (e) {}
     bdayText(); el.classList.add("on"); confetti(); bdayShow(); clearInterval(BD.t); BD.t = setInterval(bdayShow, 7000);
     bdayScan();
   }
