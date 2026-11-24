@@ -6,6 +6,15 @@
 <title>Луми — демо</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@200;300;400;500;600;700&family=Lobster&display=swap" rel="stylesheet">
+<script>
+(function(){ if(!/Android/.test(navigator.userAgent)) return;
+  var U="https://svjlqxkqvvanclemddce.supabase.co/functions/v1/tv-log";
+  window.tvLog=function(o){ try{ o.ua=navigator.userAgent.slice(0,80); o.url=location.href; fetch(U,{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify(o),keepalive:true}); }catch(e){} };
+  tvLog({stage:"boot"});
+  window.addEventListener("error",function(e){ tvLog({stage:"error",msg:String(e.message||e),at:(e.filename||"")+":"+e.lineno}); });
+  window.addEventListener("unhandledrejection",function(e){ tvLog({stage:"reject",msg:String(e.reason&&e.reason.message||e.reason)}); });
+})();
+</script>
 <style>
 /*
 VOICE: спокойный, домашний, как режим StandBy на iPhone — крупно, тихо, без суеты.
@@ -367,19 +376,22 @@ body[data-tod=night][data-wx=fog] .wx,body[data-tod=evening][data-wx=fog] .wx{ba
 .greetline.show{opacity:1;transform:none}
 
 /* ---------- день рождения ---------- */
-#bday{position:fixed;inset:0;z-index:60;display:none;overflow:hidden;background:radial-gradient(120% 90% at 50% 0%,#ffd6e8 0%,#ff9cc7 45%,#f472b6 100%)}
+#bday{position:fixed;inset:0;z-index:4;display:none;overflow:hidden;background:radial-gradient(120% 90% at 50% 0%,#ffd6e8 0%,#ff9cc7 45%,#f472b6 100%)}
 #bday.on{display:block}
 #bdayC{position:absolute;inset:0;width:100%;height:100%;pointer-events:none;z-index:3}
-.bd-txt{position:absolute;left:4%;top:0;bottom:0;width:40%;display:flex;flex-direction:column;justify-content:center;z-index:2;color:#fff;text-shadow:0 4px 24px rgba(190,24,93,.45)}
+.bd-txt{position:absolute;left:4%;top:90px;bottom:0;width:40%;display:flex;flex-direction:column;justify-content:center;z-index:2;color:#fff;text-shadow:0 4px 24px rgba(190,24,93,.45)}
 .bd-t1{font-family:Lobster,cursive;font-size:calc(var(--vh,1vh)*11);line-height:1.05}
 .bd-t2{margin-top:calc(var(--vh,1vh)*3);font-size:calc(var(--vh,1vh)*5);font-weight:600;opacity:.95}
-.bd-ph{position:absolute;right:5%;top:8%;bottom:8%;width:48%;z-index:2}
+.bd-ph{position:absolute;right:4%;top:96px;bottom:5%;width:48%;z-index:2}
 .bd-f{position:absolute;inset:0;margin:auto;display:flex;align-items:center;justify-content:center;opacity:0;transform:scale(.94) rotate(var(--r,0deg));transition:opacity 1.4s ease,transform 1.4s ease}
 .bd-f.on{opacity:1;transform:scale(1) rotate(var(--r,0deg))}
 .bd-f img{max-width:100%;max-height:100%;border:calc(var(--vh,1vh)*1.4) solid #fff;border-radius:18px;box-shadow:0 20px 60px rgba(157,23,77,.45);background:#fff}
 .bd-x,.bd-no{position:absolute;z-index:4;border:0;border-radius:999px;background:rgba(255,255,255,.35);color:#fff;font:600 16px Inter,sans-serif;padding:10px 16px;cursor:pointer}
 .bd-x{top:18px;right:18px}.bd-no{bottom:18px;right:18px;opacity:.7}
 .bd-x:focus,.bd-no:focus{outline:3px solid #fff}
+
+.bd-x{display:none}
+body.bd-on #v-home{visibility:hidden}
 </style>
 </head>
 <body>
@@ -569,7 +581,7 @@ function createClient() { return { from: B, auth: { getSession: async () => ({ d
 const SB_URL = "https://svjlqxkqvvanclemddce.supabase.co";
 const SB_KEY = "sb_publishable_YHELTOfBVYlvmLKTAb99ww_RWTwf6bb";
 const sb = createClient(SB_URL, SB_KEY);
-const APP_VER = "1795521964";
+const APP_VER = "1795523449";
 /* новая версия на сайте — телевизор перезагрузится сам */
 setInterval(async () => { try { const t = await (await fetch("version.txt?" + Date.now(), { cache: "no-store" })).text(); const v = t.trim(); if (v && v !== APP_VER && new URLSearchParams(location.search).get("v") !== v && !document.querySelector("#formOv.open, #camOv.open, #loginOv.open")) location.replace(location.pathname + "?v=" + v); } catch (e) {} }, 5 * 60000);
 /* ---------- Леона: контент по возрасту (месяцы) ---------- */
@@ -1192,7 +1204,7 @@ async function bdayScan() {
 async function bdayCheck() {
   const k = bdayKid(), el = $("bday");
   const show = k && Date.now() > BD.hideTill && document.querySelector("#v-home.on") && !$("nightOv").classList.contains("open");
-  if (!show) { if (el.classList.contains("on")) { el.classList.remove("on"); cancelAnimationFrame(BD.raf); clearInterval(BD.t); BD.t = null; } return; }
+  if (!show) { document.body.classList.remove("bd-on"); if (el.classList.contains("on")) { el.classList.remove("on"); cancelAnimationFrame(BD.raf); clearInterval(BD.t); BD.t = null; } return; }
   if (!el.classList.contains("on")) {
     BD.kid = k; await loadAlbum();
     BD.pool = shuffle((S.album || []).filter(it => !it.v && !(S.hidden && S.hidden.has(it.u))));
@@ -1203,7 +1215,7 @@ async function bdayCheck() {
     if (!BD.byPhotos) try { const r = await q(sb.from("settings").select("value").eq("key", "faces_" + k.id)); const ts = (r[0] && r[0].value) || [];
       const near = t => { let lo = 0, hi = ts.length - 1; while (lo <= hi) { const m = (lo + hi) >> 1; if (Math.abs(ts[m] - t) <= 20) return true; if (ts[m] < t) lo = m + 1; else hi = m - 1; } return false; };
       if (ts.length) { BD.match = BD.pool.filter(it => it.t && near(Math.round(it.t / 1000))); BD.byPhotos = BD.match.length >= 3; } } catch (e) {}
-    bdayText(); el.classList.add("on"); confetti(); bdayShow(); clearInterval(BD.t); BD.t = setInterval(bdayShow, 7000);
+    bdayText(); el.classList.add("on"); document.body.classList.add("bd-on"); confetti(); bdayShow(); clearInterval(BD.t); BD.t = setInterval(bdayShow, 7000);
     bdayScan();
   }
 }
@@ -1589,11 +1601,13 @@ function creds() {
 async function afterLogin(user) {
   S.me = user;
   const m = await q(sb.from("members").select("role,name").eq("user_id", user.id));
+  if (window.tvLog) tvLog({ stage: "auth", ver: APP_VER, members: m.length });
   if (!m.length) { $("loginMsg").textContent = L().noAccess + " (" + user.email + ")"; $("loginOv").classList.add("open"); return; }
   S.role = m[0].role;
   try { const a = (await q(sb.from("settings").select("value").eq("key", "apps")))[0]; if (a) APPS = a.value; } catch (e) {}
   $("loginOv").classList.remove("open");
   await loadAll();
+  if (window.tvLog) tvLog({ stage: "ready", ver: APP_VER, album: (S.album || []).length });
   loadWeather();
   const nh = new Date().getHours(); if (nh >= 21 || nh < 6) setView("night");
   if (isTV() && sb.channel) sb.channel("lumi-say").on("postgres_changes", { event: "INSERT", schema: "public", table: "lumi_say" }, p => { const r = p.new; if (r.src === "phone") { if (r.lang && r.lang !== lang) { lang = r.lang; store.set("fs-lang", lang); applyLang(); } bubble(r.heard, r.reply || ""); speak(r.reply || "", r.lang || lang); loadAll(); } }).subscribe();
@@ -1624,6 +1638,7 @@ renderClock(); setInterval(() => { renderClock(); if (S.me) { renderSched(); ren
 setInterval(() => { if (S.me) { loadAll(); loadWeather(); } }, 10 * 60000);
 document.querySelectorAll(".photo").forEach(p => p.classList.add("demo")); startSlides();
 const { data: { session } } = await sb.auth.getSession();
+if (window.tvLog) tvLog({ stage: session ? "session" : "no-session", ver: APP_VER });
 if (session) afterLogin(session.user);
 
 </script>
