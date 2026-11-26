@@ -450,6 +450,24 @@ body.ny #nyCv{display:block}
 .cards>article.wear{display:none!important}
 .cards{grid-template-areas:"s t" "o c"!important}
 .cards:has(#otd.hide){grid-template-areas:"s t" "c c"!important}
+
+.dlist{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:12px}
+.dlist button{display:grid;justify-items:center;gap:6px;padding:12px 6px;border:0;border-radius:18px;background:rgba(255,255,255,.12);color:#fff;font:600 17px Inter,sans-serif;cursor:pointer}
+.dlist svg{width:64px;height:64px}
+.dlist button:focus{outline:3px solid #fff}
+#drawOv{position:fixed;inset:0;z-index:75;background:linear-gradient(160deg,#16244a,#0b1430);display:none;color:#fff}
+#drawOv.on{display:flex;align-items:center;gap:4vw;padding:0 5vw}
+.dr-pic{flex:0 0 auto;width:min(78vh,52vw);aspect-ratio:1;background:#fffdf7;border-radius:28px;box-shadow:0 20px 60px rgba(0,0,0,.4)}
+.dr-pic svg{width:100%;height:100%}
+.dr-side{flex:1;display:grid;gap:22px}
+.dr-step{font:600 22px Inter,sans-serif;opacity:.7}
+#drTxt{margin:0;font:600 calc(var(--vh,1vh)*5)/1.3 Inter,sans-serif}
+.dr-btns{display:flex;gap:12px}
+.dr-btns button{border:0;border-radius:999px;background:rgba(255,255,255,.18);color:#fff;font:600 22px Inter,sans-serif;padding:16px 26px;cursor:pointer}
+.dr-btns button.main{background:#ffb340;color:#2a1a00}
+.dr-x{position:absolute;top:20px;right:20px;border:0;border-radius:999px;background:rgba(255,255,255,.2);color:#fff;font:600 22px Inter,sans-serif;width:56px;height:56px;cursor:pointer}
+@keyframes drw{from{stroke-dashoffset:var(--len)}to{stroke-dashoffset:0}}
+.dr-new{stroke:#ff8a00;animation:drw 1.6s ease forwards}
 </style>
 </head>
 <body>
@@ -504,6 +522,8 @@ body.ny #nyCv{display:block}
     <article class="glass card wide whohere" id="whoHere"></article>
     <article class="glass card wide games"><h2><span id="gmT">Игры с камерой</span></h2>
       <div class="gbtns"><button class="gbtn" data-game="freeze"><span>💃</span><b id="gmF">Танцы-замри</b></button><button class="gbtn" data-game="stars"><span>⭐</span><b id="gmS">Лови звёзды</b></button></div></article>
+    <article class="glass card wide draw"><h2><span>Рисуем вместе 🎨</span><button class="btn ghost" id="drVid" style="padding:6px 14px;min-height:36px">Видеоуроки</button></h2>
+      <div class="dlist" id="dList"></div></article>
     <article class="glass card" id="rit0"></article>
     <article class="glass card" id="rit1"></article>
     <article class="glass card">
@@ -586,6 +606,10 @@ body.ny #nyCv{display:block}
   <div class="bd-ph" id="bdPh"><div class="bd-f"></div><div class="bd-f"></div></div>
   <button class="bd-x" id="bdX">✕</button><button class="bd-no" id="bdNo"></button>
 </div>
+<div id="drawOv"><div class="dr-pic"><svg id="drSvg" viewBox="0 0 400 400"></svg></div>
+  <div class="dr-side"><div class="dr-step" id="drStep"></div><p id="drTxt"></p>
+  <div class="dr-btns"><button id="drPrev">‹ Назад</button><button id="drAgain">↻</button><button id="drNext" class="main">Дальше ›</button></div></div>
+  <button id="drX" class="dr-x">✕</button></div>
 <div id="gameOv"><video id="gmV" autoplay muted playsinline></video><canvas id="gmC"></canvas>
   <div class="gm-top"><div id="gmScore"></div><button id="gmX">✕</button></div><div class="gm-msg" id="gmMsg"></div></div>
 <div class="ov" id="greetOv" role="dialog" aria-modal="true">
@@ -650,7 +674,7 @@ function createClient() { return { from: B, auth: { getSession: async () => ({ d
 const SB_URL = "https://svjlqxkqvvanclemddce.supabase.co";
 const SB_KEY = "sb_publishable_YHELTOfBVYlvmLKTAb99ww_RWTwf6bb";
 const sb = createClient(SB_URL, SB_KEY);
-const APP_VER = "1795681723";
+const APP_VER = "1795681899";
 /* новая версия на сайте — телевизор перезагрузится сам */
 setInterval(async () => { try { const t = await (await fetch("version.txt?" + Date.now(), { cache: "no-store" })).text(); const v = t.trim(); if (v && v !== APP_VER && new URLSearchParams(location.search).get("v") !== v && !document.querySelector("#formOv.open, #camOv.open, #loginOv.open")) location.replace(location.pathname + "?v=" + v); } catch (e) {} }, 5 * 60000);
 /* ---------- Леона: контент по возрасту (месяцы) ---------- */
@@ -1476,6 +1500,68 @@ $("stX").onclick = () => { ST.run++; ST.s = null; stStopAudio(); $("storyOv").cl
   requestAnimationFrame(frame);
 })();
 window.renderHintsNow = renderHints;
+
+/* ---------- «Рисуем вместе»: пошаговые уроки рисования для малышей ---------- */
+const C = (x, y, r) => `M${x - r} ${y}a${r} ${r} 0 1 0 ${2 * r} 0a${r} ${r} 0 1 0 ${-2 * r} 0`;
+const DOT = (x, y, r) => ({ d: C(x, y, r), fill: 1 });
+const LESSONS = [
+  { n: "Котик", e: "🐱", steps: [
+    ["Нарисуй большой круг — это голова котика.", [C(200, 210, 100)]],
+    ["Сверху два треугольника — ушки.", ["M118 150L128 70L182 118", "M282 150L272 70L218 118"]],
+    ["Два кружочка — глазки.", [DOT(165, 195, 14), DOT(235, 195, 14)]],
+    ["Маленький носик и улыбку.", ["M190 228h20l-10 12z", "M200 240q-15 22-30 12", "M200 240q15 22 30 12"]],
+    ["И усики! Котик готов. Мяу!", ["M150 232L85 218", "M150 244L85 252", "M250 232L315 218", "M250 244L315 252"]]] },
+  { n: "Снеговик", e: "⛄", steps: [
+    ["Внизу большой круг.", [C(200, 300, 78)]],
+    ["Над ним круг поменьше.", [C(200, 182, 56)]],
+    ["Сверху маленький круг — голова.", [C(200, 92, 40)]],
+    ["Глазки и носик-морковку.", [DOT(186, 84, 6), DOT(214, 84, 6), "M200 96L240 102L200 108z"]],
+    ["Пуговки и ручки-веточки. Ура, снеговик!", [DOT(200, 165, 6), DOT(200, 195, 6), "M146 178L96 140", "M254 178L304 140"]]] },
+  { n: "Ёлочка", e: "🎄", steps: [
+    ["Нарисуй треугольник сверху.", ["M200 50L140 150H260Z"]],
+    ["Под ним треугольник побольше.", ["M200 110L115 230H285Z"]],
+    ["И самый большой внизу.", ["M200 190L90 320H310Z"]],
+    ["Ствол — маленький прямоугольник.", ["M180 320h40v45h-40z"]],
+    ["Звезда и шарики! С Новым годом!", ["M200 22l8 18 20 2-15 13 5 19-18-10-18 10 5-19-15-13 20-2z", DOT(170, 205, 9), DOT(235, 262, 9), DOT(205, 140, 9), DOT(150, 295, 9), DOT(255, 185, 9), DOT(220, 300, 9)]]] },
+  { n: "Рыбка", e: "🐟", steps: [
+    ["Нарисуй овал — это тело рыбки.", ["M70 200a110 65 0 1 0 220 0a110 65 0 1 0 -220 0"]],
+    ["Сбоку треугольник — хвостик.", ["M290 200L360 145V255Z"]],
+    ["Глазик и ротик.", [DOT(120, 185, 12), "M75 208q12 10 25 0"]],
+    ["Плавники сверху и снизу.", ["M165 137q30-42 62 4", "M168 263q28 36 58 0"]],
+    ["Чешуйки-полукруги. Буль-буль!", ["M150 205q15-22 30 0", "M190 205q15-22 30 0", "M230 205q15-22 30 0", "M170 235q15-22 30 0", "M210 235q15-22 30 0"]]] },
+  { n: "Домик", e: "🏠", steps: [
+    ["Нарисуй квадрат — стены домика.", ["M110 180h180v160h-180z"]],
+    ["Сверху треугольник — крыша.", ["M90 180L200 80L310 180"]],
+    ["Дверка.", ["M195 340v-80h50v80", DOT(235, 302, 4)]],
+    ["Окошко с рамкой.", ["M125 210h50v50h-50z", "M150 210v50", "M125 235h50"]],
+    ["Трубу и дымок! Уютный домик.", ["M250 135v-45h30v72", "M270 70q-14-12 0-24", "M282 46q-14-12 0-24"]]] },
+  { n: "Солнышко", e: "☀️", steps: [
+    ["Нарисуй круг посередине.", [C(200, 200, 70)]],
+    ["Лучики во все стороны.", ["M200 110V60", "M200 290V340", "M110 200H60", "M290 200H340", "M137 137L102 102", "M263 263L298 298", "M263 137L298 102", "M137 263L102 298"]],
+    ["Глазки и улыбку. Солнышко светит!", [DOT(176, 185, 8), DOT(224, 185, 8), "M165 220q35 35 70 0"]]] },
+];
+const DR = { l: 0, s: 0 };
+function drawRenderList() {
+  $("dList").innerHTML = LESSONS.map((l, i) => `<button data-les="${i}"><span style="font-size:44px">${l.e}</span>${l.n}</button>`).join("");
+}
+function drawStep(anim = true) {
+  const les = LESSONS[DR.l], st = les.steps[DR.s];
+  const old = les.steps.slice(0, DR.s).flatMap(x => x[1]), now = st[1];
+  const toPath = (p, cls) => { const o = typeof p === "string" ? { d: p } : p; return `<path d="${o.d}" fill="${o.fill ? (cls ? "#ff8a00" : "#2b2b3a") : "none"}" stroke="${cls ? "#ff8a00" : "#2b2b3a"}" stroke-width="7" stroke-linecap="round" stroke-linejoin="round" ${cls ? `class="dr-new"` : ""}/>`; };
+  $("drSvg").innerHTML = old.map(p => toPath(p, false)).join("") + now.map(p => toPath(p, anim)).join("");
+  $("drSvg").querySelectorAll(".dr-new").forEach(el => { const L = Math.ceil(el.getTotalLength()); el.style.setProperty("--len", L); el.style.strokeDasharray = L; el.style.strokeDashoffset = L; });
+  $("drStep").textContent = `${les.e} ${les.n} · шаг ${DR.s + 1} из ${les.steps.length}`;
+  $("drTxt").textContent = st[0];
+  $("drNext").textContent = DR.s === les.steps.length - 1 ? "Ещё урок ›" : "Дальше ›";
+  try { speak(st[0], "ru"); } catch (e) {}
+}
+document.querySelector(".draw").addEventListener("click", e => { const b = e.target.closest("[data-les]"); if (b) { DR.l = +b.dataset.les; DR.s = 0; $("drawOv").classList.add("on"); drawStep(); } });
+$("drNext").onclick = () => { const les = LESSONS[DR.l]; if (DR.s < les.steps.length - 1) DR.s++; else { DR.l = (DR.l + 1) % LESSONS.length; DR.s = 0; } drawStep(); };
+$("drPrev").onclick = () => { if (DR.s > 0) { DR.s--; drawStep(); } };
+$("drAgain").onclick = () => drawStep();
+$("drX").onclick = () => $("drawOv").classList.remove("on");
+$("drVid").onclick = () => window.open("https://www.youtubekids.com/search?q=" + encodeURIComponent("рисуем с детьми поэтапно"), "_blank");
+drawRenderList();
 
 
 function spark(a) { if (a.length < 2) return ""; const W = 200, H = 60, mn = Math.min(...a), mx = Math.max(...a); const p = a.map((v, i) => [i * W / (a.length - 1), H - 6 - (v - mn) / ((mx - mn) || 1) * (H - 12)]); return `<svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="none"><polyline points="${p.map(x => x.join(",")).join(" ")}" fill="none" stroke="#ffb340" stroke-width="3" vector-effect="non-scaling-stroke"/></svg>`; }
