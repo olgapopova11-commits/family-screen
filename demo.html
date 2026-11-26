@@ -506,6 +506,7 @@ body.phone #nav .rnav{order:-1}
 .cards>article.otd .sq{height:calc(var(--vh,1vh)*22)!important}
 /* голосовой помощник и распознавание лиц пока выключены */
 #askBtn,.duo,#camBtn{display:none!important}
+#deepSleep{position:fixed;inset:0;z-index:200;background:#000;display:none}body.deep #deepSleep{display:block}body.deep *{animation-play-state:paused!important}
 </style>
 </head>
 <body>
@@ -725,7 +726,7 @@ function createClient() { return { from: B, auth: { getSession: async () => ({ d
 const SB_URL = "https://svjlqxkqvvanclemddce.supabase.co";
 const SB_KEY = "sb_publishable_YHELTOfBVYlvmLKTAb99ww_RWTwf6bb";
 const sb = createClient(SB_URL, SB_KEY);
-const APP_VER = "1795699384";
+const APP_VER = "1795716651";
 /* новая версия на сайте — телевизор перезагрузится сам */
 setInterval(async () => { try { const t = await (await fetch("version.txt?" + Date.now(), { cache: "no-store" })).text(); const v = t.trim(); if (v && v !== APP_VER && new URLSearchParams(location.search).get("v") !== v && !document.querySelector("#formOv.open, #camOv.open, #loginOv.open")) location.replace(location.pathname + "?v=" + v); } catch (e) {} }, 5 * 60000);
 /* ---------- Леона: контент по возрасту (месяцы) ---------- */
@@ -788,7 +789,7 @@ const Sky = (() => {
     cx.restore();
   }
   function frame(t) {
-    raf = requestAnimationFrame(frame); if (document.hidden) return;
+    raf = requestAnimationFrame(frame); if (document.hidden || window.__sleep) return;
     const dt = Math.min(.05, (t - last) / 1000 || .016); if (t - last < (/Android/.test(navigator.userAgent) ? 60 : 33)) return; last = t;
     cx.clearRect(0, 0, W, H);
     if (night && kind === "clear") { const g = cx.createRadialGradient(W * .8, H * .15, 0, W * .8, H * .15, 70); g.addColorStop(0, "rgba(255,250,230,.9)"); g.addColorStop(.18, "rgba(255,250,230,.85)"); g.addColorStop(.22, "rgba(200,210,255,.15)"); g.addColorStop(1, "rgba(200,210,255,0)"); cx.fillStyle = g; cx.beginPath(); cx.arc(W * .8, H * .15, 70, 0, 7); cx.fill(); }
@@ -1387,6 +1388,7 @@ function onThisDay() {
   otdShow(); OTD.t = setInterval(otdShow, 5000);
 }
 function otdShow() {
+  if (window.__sleep) return;
   // два квадрата, в каждом по очереди фото этого дня из разных лет вперемешку
   const box = $("otdPh"); if (!box.children.length) box.innerHTML = '<div class="sq"></div><div class="sq"></div>';
   const n = OTD.list.length, sq = [...box.children];
@@ -1546,7 +1548,7 @@ $("stX").onclick = () => { ST.run++; ST.s = null; stStopAudio(); $("storyOv").cl
   const bulbs = Array.from({ length: 26 }, (_, i) => ({ i, c: cols[i % cols.length], ph: Math.random() * 6.28 }));
   let last = 0;
   const frame = t => {
-    requestAnimationFrame(frame); if (t - last < (slow ? 50 : 66)) return; last = t;
+    requestAnimationFrame(frame); if (window.__sleep || t - last < (slow ? 50 : 66)) return; last = t;
     const W = c.width = c.clientWidth, H = c.height = c.clientHeight; x.clearRect(0, 0, W, H);
     // сугробы
     x.fillStyle = "rgba(235,245,255,.10)"; x.beginPath(); x.moveTo(0, H); x.bezierCurveTo(W * .2, H * .86, W * .45, H * .9, W * .6, H * .93); x.bezierCurveTo(W * .75, H * .96, W * .9, H * .88, W, H * .9); x.lineTo(W, H); x.fill();
@@ -1657,6 +1659,20 @@ document.querySelector(".remote").addEventListener("click", async e => {
 if (!isTV() && matchMedia("(pointer:coarse)").matches) setTimeout(() => setView("remote"), 1800);
 
 document.documentElement.style.setProperty("--rf", store.get("fs-rf2", 1.3) + "fr");
+
+/* ---------- глубокий сон ночью (23:00–07:00): чёрный экран, всё остановлено — ноутбук остывает ---------- */
+(function () {
+  const ov = document.createElement("div"); ov.id = "deepSleep"; document.body.appendChild(ov);
+  const tick = () => {
+    const h = new Date().getHours(), on = h >= 23 || h < 7;
+    if (on === !!window.__sleep) return;
+    window.__sleep = on; document.body.classList.toggle("deep", on);
+    document.querySelectorAll("video").forEach(v => { try { on ? v.pause() : v.play(); } catch (e) {} });
+    if (!on && window.__nextSlide) window.__nextSlide();
+  };
+  tick(); setInterval(tick, 60000);
+  ov.addEventListener("click", () => { window.__sleep = false; document.body.classList.remove("deep"); });
+})();
 
 
 function spark(a) { if (a.length < 2) return ""; const W = 200, H = 60, mn = Math.min(...a), mx = Math.max(...a); const p = a.map((v, i) => [i * W / (a.length - 1), H - 6 - (v - mn) / ((mx - mn) || 1) * (H - 12)]); return `<svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="none"><polyline points="${p.map(x => x.join(",")).join(" ")}" fill="none" stroke="#ffb340" stroke-width="3" vector-effect="non-scaling-stroke"/></svg>`; }
@@ -1794,7 +1810,7 @@ async function hideMedia(it, cell) {
 function renderPhotoGrid(urls) { $("pgrid").innerHTML = urls.map(u => `<img src="${u}" alt="" loading="lazy">`).join(""); }
 window.__nextSlide = () => nextSlide();
 function nextSlide() {
-  clearTimeout(slideT); if (!SLIDES.length) return;
+  clearTimeout(slideT); if (window.__sleep) { slideT = setTimeout(nextSlide, 60000); return; } if (!SLIDES.length) return;
   const layers = [...$("realPhotos").children]; const cur = layers.find(x => x.classList.contains("on")), nxt = layers.find(x => x !== cur);
   slideI = (slideI + 1) % SLIDES.length;
   fillLayer(nxt, SLIDES[slideI], ms => {
