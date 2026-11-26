@@ -496,6 +496,14 @@ body.phone #nav .rnav{order:-1}
 
 .home{grid-template-columns:minmax(0,1fr) minmax(0,var(--rf,0.95fr))!important}
 .home{grid-template-columns:minmax(0,1fr) minmax(0,var(--rf,1.3fr))!important}
+/* главная на ноутбуке: часы сверху, подсказки во всю ширину под ними */
+.home .toprow{grid-template-columns:minmax(0,1fr)!important;gap:12px}
+.home .hints{max-width:none;grid-template-columns:minmax(0,1fr)}
+.home .hint{min-height:40px;padding:8px 14px}
+.cards>article.otd .sq{height:calc(var(--vh,1vh)*24)!important}
+.home .clock{font-size:clamp(52px,5vw,92px)!important}
+.home .hints .hint:nth-child(n+3){display:none}
+.cards>article.otd .sq{height:calc(var(--vh,1vh)*22)!important}
 </style>
 </head>
 <body>
@@ -715,7 +723,7 @@ function createClient() { return { from: B, auth: { getSession: async () => ({ d
 const SB_URL = "https://svjlqxkqvvanclemddce.supabase.co";
 const SB_KEY = "sb_publishable_YHELTOfBVYlvmLKTAb99ww_RWTwf6bb";
 const sb = createClient(SB_URL, SB_KEY);
-const APP_VER = "1795693753";
+const APP_VER = "1795697670";
 /* новая версия на сайте — телевизор перезагрузится сам */
 setInterval(async () => { try { const t = await (await fetch("version.txt?" + Date.now(), { cache: "no-store" })).text(); const v = t.trim(); if (v && v !== APP_VER && new URLSearchParams(location.search).get("v") !== v && !document.querySelector("#formOv.open, #camOv.open, #loginOv.open")) location.replace(location.pathname + "?v=" + v); } catch (e) {} }, 5 * 60000);
 /* ---------- Леона: контент по возрасту (месяцы) ---------- */
@@ -1222,7 +1230,7 @@ async function recogTick() {
 }
 async function startRecog() {
   if (recogT || !Object.keys(faces()).length) return;
-  try { await camOn(); await faLoad(); recogT = setInterval(() => { if (!document.querySelector("#v-home.on, #v-kids.on")) return; recogTick().catch(() => {}); }, 5000); } catch (e) { console.warn("cam", e); }
+  try { await camOn(); await faLoad(); recogT = setInterval(() => { if (!document.querySelector("#v-home.on, #v-kids.on")) return; recogTick().catch(() => {}); }, 12000); } catch (e) { console.warn("cam", e); }
 }
 Object.assign(T.ru, { camT: "Знакомство с Луми", camLoading: "Включаю камеру…", camOk: "Камера работает. Загружаю распознавание…", camReady: "Готово. Нажмите на имя — пусть девочка посмотрит в камеру 3 секунды.", camNo: "Камера не найдена или нет доступа", camLook: "Смотрим в камеру:", camNoFace: "Лицо не увидела. Подойдите ближе к экрану и попробуйте ещё раз.", camSaved: "Запомнила:", camReset: "Забыть всех", camForgot: "Лица удалены", camBtn: "Познакомиться через камеру" });
 Object.assign(T.en, { camT: "Meet Lumi", camLoading: "Turning on the camera…", camOk: "Camera works. Loading recognition…", camReady: "Ready. Tap a name and look at the camera for 3 seconds.", camNo: "No camera or no access", camLook: "Look at the camera:", camNoFace: "No face seen. Come closer and try again.", camSaved: "Remembered:", camReset: "Forget everyone", camForgot: "Faces removed", camBtn: "Meet through the camera" });
@@ -1517,7 +1525,7 @@ $("stX").onclick = () => { ST.run++; ST.s = null; stStopAudio(); $("storyOv").cl
   const bulbs = Array.from({ length: 26 }, (_, i) => ({ i, c: cols[i % cols.length], ph: Math.random() * 6.28 }));
   let last = 0;
   const frame = t => {
-    requestAnimationFrame(frame); if (t - last < (slow ? 50 : 33)) return; last = t;
+    requestAnimationFrame(frame); if (t - last < (slow ? 50 : 66)) return; last = t;
     const W = c.width = c.clientWidth, H = c.height = c.clientHeight; x.clearRect(0, 0, W, H);
     // сугробы
     x.fillStyle = "rgba(235,245,255,.10)"; x.beginPath(); x.moveTo(0, H); x.bezierCurveTo(W * .2, H * .86, W * .45, H * .9, W * .6, H * .93); x.bezierCurveTo(W * .75, H * .96, W * .9, H * .88, W, H * .9); x.lineTo(W, H); x.fill();
