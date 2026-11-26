@@ -650,7 +650,7 @@ function createClient() { return { from: B, auth: { getSession: async () => ({ d
 const SB_URL = "https://svjlqxkqvvanclemddce.supabase.co";
 const SB_KEY = "sb_publishable_YHELTOfBVYlvmLKTAb99ww_RWTwf6bb";
 const sb = createClient(SB_URL, SB_KEY);
-const APP_VER = "1795681678";
+const APP_VER = "1795681723";
 /* новая версия на сайте — телевизор перезагрузится сам */
 setInterval(async () => { try { const t = await (await fetch("version.txt?" + Date.now(), { cache: "no-store" })).text(); const v = t.trim(); if (v && v !== APP_VER && new URLSearchParams(location.search).get("v") !== v && !document.querySelector("#formOv.open, #camOv.open, #loginOv.open")) location.replace(location.pathname + "?v=" + v); } catch (e) {} }, 5 * 60000);
 /* ---------- Леона: контент по возрасту (месяцы) ---------- */
@@ -902,7 +902,7 @@ const WEAR = {
 };
 
 /* приложения: настраиваются в settings.apps */
-let APPS = [["YouTube", "#ff3b30", "YT", "com.google.android.youtube.tv", "https://www.youtube.com"], ["YouTube Kids", "#ff9500", "Kids", "com.google.android.youtube.tvkids", "https://www.youtubekids.com"], ["Музыка", "#af52de", "♪", "com.google.android.apps.youtube.music", "https://music.youtube.com"], ["Касса", "#34c759", "₸", "https://sunshinesilver.kz", "https://sunshinesilver.kz"]];
+let APPS = [["YouTube", "#ff3b30", "YT", "com.google.android.youtube.tv", "https://www.youtube.com"], ["YouTube Kids", "#ff9500", "Kids", "com.google.android.youtube.tvkids", "https://www.youtubekids.com"], ["Музыка", "#af52de", "♪", "com.google.android.apps.youtube.music", "https://music.youtube.com"]];
 function renderApps() { const cros = /CrOS/.test(navigator.userAgent); const h = APPS.map(([n, c, s, p, w], i) => cros && !w && !(p || "").startsWith("http") ? "" : `<button class="app" data-i="${i}"><i style="background:${c}">${esc(s)}</i><span>${esc(n)}</span></button>`).join(""); $("apps").innerHTML = h; $("appsBig").innerHTML = h; }
 $("appsBig").addEventListener("click", e => { const b = e.target.closest(".app"); if (b) $("apps").querySelector(`.app[data-i="${b.dataset.i}"]`)?.click(); });
 $("apps").addEventListener("click", e => {
