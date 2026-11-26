@@ -1,3 +1,4 @@
+<link rel="manifest" href="manifest.json">
 <!DOCTYPE html>
 <html lang="ru">
 <head>
@@ -649,7 +650,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.4";
 const SB_URL = "https://svjlqxkqvvanclemddce.supabase.co";
 const SB_KEY = "sb_publishable_YHELTOfBVYlvmLKTAb99ww_RWTwf6bb";
 const sb = createClient(SB_URL, SB_KEY);
-const APP_VER = "1795689398";
+const APP_VER = "1795689556";
 /* новая версия на сайте — телевизор перезагрузится сам */
 setInterval(async () => { try { const t = await (await fetch("version.txt?" + Date.now(), { cache: "no-store" })).text(); const v = t.trim(); if (v && v !== APP_VER && new URLSearchParams(location.search).get("v") !== v && !document.querySelector("#formOv.open, #camOv.open, #loginOv.open")) location.replace(location.pathname + "?v=" + v); } catch (e) {} }, 5 * 60000);
 /* ---------- Леона: контент по возрасту (месяцы) ---------- */
@@ -1537,6 +1538,9 @@ $("drAgain").onclick = () => drawStep();
 $("drX").onclick = () => $("drawOv").classList.remove("on");
 $("drVid").onclick = () => window.open("https://www.youtubekids.com/search?q=" + encodeURIComponent("рисуем с детьми поэтапно"), "_blank");
 drawRenderList();
+
+/* полноэкранный режим на ноутбуке: при первом нажатии любой клавиши или клике */
+if (/CrOS/.test(navigator.userAgent)) { const fs = () => { if (!document.fullscreenElement) document.documentElement.requestFullscreen?.().catch(() => {}); }; addEventListener("keydown", fs, { once: true }); addEventListener("click", fs, { once: true }); }
 
 
 function spark(a) { if (a.length < 2) return ""; const W = 200, H = 60, mn = Math.min(...a), mx = Math.max(...a); const p = a.map((v, i) => [i * W / (a.length - 1), H - 6 - (v - mn) / ((mx - mn) || 1) * (H - 12)]); return `<svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="none"><polyline points="${p.map(x => x.join(",")).join(" ")}" fill="none" stroke="#ffb340" stroke-width="3" vector-effect="non-scaling-stroke"/></svg>`; }
