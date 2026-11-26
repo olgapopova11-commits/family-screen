@@ -468,6 +468,12 @@ body.ny #nyCv{display:block}
 .dr-x{position:absolute;top:20px;right:20px;border:0;border-radius:999px;background:rgba(255,255,255,.2);color:#fff;font:600 22px Inter,sans-serif;width:56px;height:56px;cursor:pointer}
 @keyframes drw{from{stroke-dashoffset:var(--len)}to{stroke-dashoffset:0}}
 .dr-new{stroke:#ff8a00;animation:drw 1.6s ease forwards}
+
+.cards>article.schedc{display:none!important}
+.cards{grid-template-areas:"t c" "o o"!important}
+.cards:has(#otd.hide){grid-template-areas:"t c"!important}
+.cards>article.otd .otd-ph{grid-template-columns:1fr 1fr;max-width:none}
+.cards>article.otd .sq{aspect-ratio:16/10}
 </style>
 </head>
 <body>
@@ -493,7 +499,7 @@ body.ny #nyCv{display:block}
       </div>
       </div>
       <section class="right cards">
-      <article class="glass card wide">
+      <article class="glass card wide schedc">
         <h2><span data-n="hSched">Режим дня</span><button class="plus" data-add="schedule" aria-label="+">+</button></h2>
         <ul class="sched" id="sched"></ul>
       </article>
@@ -674,7 +680,7 @@ function createClient() { return { from: B, auth: { getSession: async () => ({ d
 const SB_URL = "https://svjlqxkqvvanclemddce.supabase.co";
 const SB_KEY = "sb_publishable_YHELTOfBVYlvmLKTAb99ww_RWTwf6bb";
 const sb = createClient(SB_URL, SB_KEY);
-const APP_VER = "1795683788";
+const APP_VER = "1795687109";
 /* новая версия на сайте — телевизор перезагрузится сам */
 setInterval(async () => { try { const t = await (await fetch("version.txt?" + Date.now(), { cache: "no-store" })).text(); const v = t.trim(); if (v && v !== APP_VER && new URLSearchParams(location.search).get("v") !== v && !document.querySelector("#formOv.open, #camOv.open, #loginOv.open")) location.replace(location.pathname + "?v=" + v); } catch (e) {} }, 5 * 60000);
 /* ---------- Леона: контент по возрасту (месяцы) ---------- */
