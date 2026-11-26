@@ -581,7 +581,7 @@ function createClient() { return { from: B, auth: { getSession: async () => ({ d
 const SB_URL = "https://svjlqxkqvvanclemddce.supabase.co";
 const SB_KEY = "sb_publishable_YHELTOfBVYlvmLKTAb99ww_RWTwf6bb";
 const sb = createClient(SB_URL, SB_KEY);
-const APP_VER = "1795523449";
+const APP_VER = "1795676983";
 /* новая версия на сайте — телевизор перезагрузится сам */
 setInterval(async () => { try { const t = await (await fetch("version.txt?" + Date.now(), { cache: "no-store" })).text(); const v = t.trim(); if (v && v !== APP_VER && new URLSearchParams(location.search).get("v") !== v && !document.querySelector("#formOv.open, #camOv.open, #loginOv.open")) location.replace(location.pathname + "?v=" + v); } catch (e) {} }, 5 * 60000);
 /* ---------- Леона: контент по возрасту (месяцы) ---------- */
@@ -1327,6 +1327,12 @@ async function loadPhotoUrls() {
   let own = [];
   if (S.photos.length) { const { data } = await sb.storage.from("photos").createSignedUrls(S.photos.map(p => p.path), 60 * 60 * 12); own = (data || []).map((x, k) => ({ u: x.signedUrl, path: S.photos[k].path, own: true, v: false })).filter(x => x.u); }
   await loadAlbum();
+  // семейный архив из Google Фото (перенесён в наше хранилище, проверен)
+  let fam = [];
+  try { const r = await q(sb.from("settings").select("value").eq("key", "family_manifest")); const man = (r[0] && r[0].value) || [];
+    for (let i = 0; i < man.length; i += 300) { const part = man.slice(i, i + 300); const { data } = await sb.storage.from("photos").createSignedUrls(part.map(m => m.p), 60 * 60 * 24); (data || []).forEach((x, k) => x.signedUrl && fam.push({ u: x.signedUrl, path: part[k].p, own: true, v: false, w: part[k].w, h: part[k].h, t: part[k].t })); }
+  } catch (e) {}
+  own = own.concat(fam);
   try { S.hidden = new Set((await q(sb.from("hidden_media").select("u"))).map(x => x.u)); } catch (e) { S.hidden = S.hidden || new Set(); }
   const first = !SLIDES.length;
   SLIDES = buildSlides([...own, ...(S.album || [])].filter(it => !S.hidden.has(it.own ? it.path : it.u)));
