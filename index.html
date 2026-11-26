@@ -539,7 +539,7 @@ body.bd-on #v-home{visibility:hidden}
   <div class="dots" id="dots"></div>
 </div>
 
-<nav class="glass nav" id="nav"><button class="on" data-v="home" data-n="vHome">Главная</button><button data-v="kids" data-n="vKids">Дети</button><button data-v="baby" data-n="vBaby">Леона</button><button data-v="kitchen" data-n="vKitchen">Кухня</button><button data-v="apps" data-n="vApps">Приложения</button><button data-v="photos" data-n="vPhotos">Фото</button><button data-v="night" data-n="vNight">Ночь</button></nav>
+<nav class="glass nav" id="nav"><button class="on" data-v="home" data-n="vHome">Главная</button><button data-v="kids" data-n="vKids">Дети</button><button data-v="kitchen" data-n="vKitchen">Кухня</button><button data-v="apps" data-n="vApps">Приложения</button><button data-v="photos" data-n="vPhotos">Фото</button><button data-v="night" data-n="vNight">Ночь</button></nav>
 <div class="glass bar"><button class="on" data-l="ru">RU</button><button data-l="en">EN</button></div>
 <div id="storyOv"><div class="st-img" id="stImg"></div><div class="st-txt"><h3 id="stTitle"></h3><p id="stP"></p></div>
   <div class="st-nav"><button id="stPrev">‹</button><span id="stNum"></span><button id="stNext">›</button><button id="stX">✕</button></div></div>
@@ -598,7 +598,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.4";
 const SB_URL = "https://svjlqxkqvvanclemddce.supabase.co";
 const SB_KEY = "sb_publishable_YHELTOfBVYlvmLKTAb99ww_RWTwf6bb";
 const sb = createClient(SB_URL, SB_KEY);
-const APP_VER = "1795678815";
+const APP_VER = "1795678932";
 /* новая версия на сайте — телевизор перезагрузится сам */
 setInterval(async () => { try { const t = await (await fetch("version.txt?" + Date.now(), { cache: "no-store" })).text(); const v = t.trim(); if (v && v !== APP_VER && new URLSearchParams(location.search).get("v") !== v && !document.querySelector("#formOv.open, #camOv.open, #loginOv.open")) location.replace(location.pathname + "?v=" + v); } catch (e) {} }, 5 * 60000);
 /* ---------- Леона: контент по возрасту (месяцы) ---------- */
