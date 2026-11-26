@@ -431,6 +431,13 @@ body.bd-on #v-home{visibility:hidden}
 .otd-ph .sq img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;opacity:0;transition:opacity 1.2s}
 .otd-ph .sq img.on{opacity:1}
 .otd-ph .sq small{position:absolute;left:8px;bottom:6px;font:600 13px Inter,sans-serif;color:#fff;text-shadow:0 1px 6px rgba(0,0,0,.7);z-index:1}
+
+/* ---------- новогодняя тема ---------- */
+body.ny .wx{background:radial-gradient(120% 60% at 50% 115%,rgba(40,120,130,.55),transparent 60%),radial-gradient(60% 40% at 85% 0%,rgba(255,200,120,.18),transparent 70%),linear-gradient(180deg,#071226 0%,#0d2444 50%,#163c63 100%)!important;filter:none!important}
+body.ny #skyCv{display:none}
+#nyCv{position:absolute;inset:0;width:100%;height:100%;display:none}
+body.ny #nyCv{display:block}
+#otd.hide{display:none!important}
 </style>
 </head>
 <body>
@@ -598,7 +605,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.4";
 const SB_URL = "https://svjlqxkqvvanclemddce.supabase.co";
 const SB_KEY = "sb_publishable_YHELTOfBVYlvmLKTAb99ww_RWTwf6bb";
 const sb = createClient(SB_URL, SB_KEY);
-const APP_VER = "1795679355";
+const APP_VER = "1795679661";
 /* новая версия на сайте — телевизор перезагрузится сам */
 setInterval(async () => { try { const t = await (await fetch("version.txt?" + Date.now(), { cache: "no-store" })).text(); const v = t.trim(); if (v && v !== APP_VER && new URLSearchParams(location.search).get("v") !== v && !document.querySelector("#formOv.open, #camOv.open, #loginOv.open")) location.replace(location.pathname + "?v=" + v); } catch (e) {} }, 5 * 60000);
 /* ---------- Леона: контент по возрасту (месяцы) ---------- */
@@ -1387,6 +1394,40 @@ function stGo(d) { if (!ST.s) return; stStopAudio(); ST.i = Math.max(0, Math.min
 $("nstory").onclick = storyOpen;
 $("stNext").onclick = () => stGo(1); $("stPrev").onclick = () => stGo(-1);
 $("stX").onclick = () => { ST.run++; ST.s = null; stStopAudio(); $("storyOv").classList.remove("on"); };
+
+/* ---------- новогодний фон: снег, гирлянда, сугробы (с 25 ноября по 14 января) ---------- */
+(function () {
+  const d = new Date(), m = d.getMonth() + 1, day = d.getDate();
+  const on = new URLSearchParams(location.search).has("ny") || (m === 11 && day >= 25) || m === 12 || (m === 1 && day <= 14);
+  if (!on) return;
+  document.body.classList.add("ny");
+  const c = document.createElement("canvas"); c.id = "nyCv"; $("wx").appendChild(c);
+  const x = c.getContext("2d"), slow = /Android/.test(navigator.userAgent);
+  const flakes = Array.from({ length: slow ? 70 : 140 }, () => ({ x: Math.random(), y: Math.random(), r: .6 + Math.random() * 2.6, v: .00025 + Math.random() * .0006, w: Math.random() * 6.28, a: .35 + Math.random() * .55 }));
+  const cols = ["#ffd27a", "#ff6b6b", "#7dffb0", "#7ac8ff", "#ffb3e6"];
+  const bulbs = Array.from({ length: 26 }, (_, i) => ({ i, c: cols[i % cols.length], ph: Math.random() * 6.28 }));
+  let last = 0;
+  const frame = t => {
+    requestAnimationFrame(frame); if (t - last < (slow ? 50 : 33)) return; last = t;
+    const W = c.width = c.clientWidth, H = c.height = c.clientHeight; x.clearRect(0, 0, W, H);
+    // сугробы
+    x.fillStyle = "rgba(235,245,255,.10)"; x.beginPath(); x.moveTo(0, H); x.bezierCurveTo(W * .2, H * .86, W * .45, H * .9, W * .6, H * .93); x.bezierCurveTo(W * .75, H * .96, W * .9, H * .88, W, H * .9); x.lineTo(W, H); x.fill();
+    x.fillStyle = "rgba(235,245,255,.16)"; x.beginPath(); x.moveTo(0, H); x.bezierCurveTo(W * .15, H * .95, W * .35, H * .97, W * .55, H * .965); x.bezierCurveTo(W * .75, H * .96, W * .85, H * .99, W, H * .97); x.lineTo(W, H); x.fill();
+    // гирлянда: провод с провисами и мерцающие огоньки
+    const seg = W / 3, sag = H * .045, yAt = px => { const k = (px % seg) / seg; return 6 + sag * 4 * k * (1 - k); };
+    x.strokeStyle = "rgba(20,30,40,.8)"; x.lineWidth = 2; x.beginPath(); for (let px = 0; px <= W; px += 8) px ? x.lineTo(px, yAt(px)) : x.moveTo(0, yAt(0)); x.stroke();
+    bulbs.forEach(b => { const px = (b.i + .5) * W / bulbs.length, py = yAt(px) + 9, tw = .55 + .45 * Math.sin(t / 700 + b.ph);
+      const g = x.createRadialGradient(px, py, 0, px, py, 26); g.addColorStop(0, b.c); g.addColorStop(1, "transparent");
+      x.globalAlpha = .35 * tw; x.fillStyle = g; x.beginPath(); x.arc(px, py, 26, 0, 6.28); x.fill();
+      x.globalAlpha = .6 + .4 * tw; x.fillStyle = b.c; x.beginPath(); x.ellipse(px, py, 4.5, 6.5, 0, 0, 6.28); x.fill(); x.globalAlpha = 1; });
+    // снег
+    x.fillStyle = "#fff";
+    for (const f of flakes) { f.y += f.v; f.w += .01; if (f.y > 1.02) { f.y = -.02; f.x = Math.random(); }
+      x.globalAlpha = f.a; x.beginPath(); x.arc((f.x + Math.sin(f.w) * .01) * W, f.y * H, f.r, 0, 6.28); x.fill(); }
+    x.globalAlpha = 1;
+  };
+  requestAnimationFrame(frame);
+})();
 
 
 function spark(a) { if (a.length < 2) return ""; const W = 200, H = 60, mn = Math.min(...a), mx = Math.max(...a); const p = a.map((v, i) => [i * W / (a.length - 1), H - 6 - (v - mn) / ((mx - mn) || 1) * (H - 12)]); return `<svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="none"><polyline points="${p.map(x => x.join(",")).join(" ")}" fill="none" stroke="#ffb340" stroke-width="3" vector-effect="non-scaling-stroke"/></svg>`; }
