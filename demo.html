@@ -487,6 +487,9 @@ body.phone #nav .rnav{display:inline-block}
 .rgrid button:active{transform:scale(.95);background:rgba(255,255,255,.28)}
 #rmOk{font-weight:500;opacity:.8}
 body.phone #nav .rnav{order:-1}
+
+.cards{grid-template-areas:"o o" "t c"!important}
+.cards:has(#otd.hide){grid-template-areas:"t c"!important}
 </style>
 </head>
 <body>
@@ -705,7 +708,7 @@ function createClient() { return { from: B, auth: { getSession: async () => ({ d
 const SB_URL = "https://svjlqxkqvvanclemddce.supabase.co";
 const SB_KEY = "sb_publishable_YHELTOfBVYlvmLKTAb99ww_RWTwf6bb";
 const sb = createClient(SB_URL, SB_KEY);
-const APP_VER = "1795689996";
+const APP_VER = "1795690038";
 /* новая версия на сайте — телевизор перезагрузится сам */
 setInterval(async () => { try { const t = await (await fetch("version.txt?" + Date.now(), { cache: "no-store" })).text(); const v = t.trim(); if (v && v !== APP_VER && new URLSearchParams(location.search).get("v") !== v && !document.querySelector("#formOv.open, #camOv.open, #loginOv.open")) location.replace(location.pathname + "?v=" + v); } catch (e) {} }, 5 * 60000);
 /* ---------- Леона: контент по возрасту (месяцы) ---------- */
@@ -1356,9 +1359,9 @@ document.getElementById("nav").addEventListener("click", () => setTimeout(bdayCh
 const OTD = { list: [], i: 0, t: null };
 function onThisDay() {
   const now = new Date(), pool = window.__memPool || [], dayMs = 86400000;
-  const pick = pool.filter(x => { const d = new Date(x.ms); if (d.getFullYear() >= now.getFullYear()) return false; const same = new Date(now.getFullYear(), d.getMonth(), d.getDate()); return Math.abs(same - new Date(now.getFullYear(), now.getMonth(), now.getDate())) <= dayMs; });
-  // одно фото на день, сначала самые давние
-  const seenDay = new Set(); OTD.list = shuffle(pick).filter(x => { const k = new Date(x.ms).toDateString(); if (seenDay.has(k) && pick.length > 6) return false; seenDay.add(k); return true; }).sort((a, b) => a.ms - b.ms);
+  // этот же день ±3 дня в прошлые годы, все фото без отбора
+  const pick = pool.filter(x => { const d = new Date(x.ms); if (d.getFullYear() >= now.getFullYear()) return false; const same = new Date(now.getFullYear(), d.getMonth(), d.getDate()); return Math.abs(same - new Date(now.getFullYear(), now.getMonth(), now.getDate())) <= 3 * dayMs; });
+  OTD.list = shuffle(pick);
   $("otd").classList.toggle("hide", !OTD.list.length);
   $("otdT").textContent = lang === "en" ? "On this day" : "В этот день";
   clearInterval(OTD.t); OTD.i = 0; if (!OTD.list.length) return;
@@ -2043,7 +2046,7 @@ $("signupBtn").addEventListener("click", async () => {
 function isTV() { const ua = navigator.userAgent; return !!window.fully || /CrOS/.test(ua) || /Android/.test(ua) && (navigator.maxTouchPoints === 0 || /\bwv\b|TV|AFT|MIBOX|BRAVIA/i.test(ua) || !/Mobile/.test(ua)) || /GoogleTV|SmartTV/i.test(ua) || matchMedia("(pointer:none)").matches; }
 function fitTV() {
   const w = innerWidth, h = innerHeight, ua = navigator.userAgent, tv = isTV();
-  const z = /CrOS/.test(ua) && w > h ? w / 1340 : tv && w < 1500 && w > h ? w / 1340 : 1;
+  const z = /CrOS/.test(ua) && w > h ? w / 1460 : tv && w < 1500 && w > h ? w / 1340 : 1;
   document.documentElement.style.zoom = z;
   document.documentElement.style.setProperty("--vh", (h / z / 100) + "px");
 }
