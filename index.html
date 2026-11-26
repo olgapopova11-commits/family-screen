@@ -443,6 +443,13 @@ body.ny #nyCv{display:block}
 .lorb{width:22px;height:22px;box-shadow:0 0 calc(4px + var(--lv,0)*18px) rgba(255,190,110,.8);transform:scale(calc(1 + var(--lv,0)*.35))}
 .lorb i{display:none}
 .ltxt{font-size:17px;font-weight:500;text-shadow:none}
+.cards{grid-template-areas:"s t" "o c" "w w"!important}
+.cards>article.otd{grid-area:o!important}.cards>article.wear{grid-area:w!important}.cards>article.cal{grid-area:c!important}
+.cards>article:nth-child(2){grid-area:t!important}.cards>article:nth-child(1){grid-area:s!important}
+.cards:has(#otd.hide){grid-template-areas:"s t" "c c" "w w"!important}
+.cards>article.wear{display:none!important}
+.cards{grid-template-areas:"s t" "o c"!important}
+.cards:has(#otd.hide){grid-template-areas:"s t" "c c"!important}
 </style>
 </head>
 <body>
@@ -473,12 +480,8 @@ body.ny #nyCv{display:block}
         <ul class="sched" id="sched"></ul>
       </article>
       <article class="glass card">
-        <h2><span data-n="hTasks">Няне на сегодня</span><button class="plus" data-add="task" aria-label="+">+</button></h2>
+        <h2><span data-n="hTasks">Напоминалки</span><button class="plus" data-add="task" aria-label="+">+</button></h2>
         <ul class="tasks" id="tasks"></ul>
-      </article>
-      <article class="glass card">
-        <h2><span data-n="hCal">Календарь</span><button class="plus" data-add="event" aria-label="+">+</button></h2>
-        <div class="ev" id="ev"></div>
       </article>
       <article class="glass card wide otd hide" id="otd">
         <h2><span id="otdT">В этот день</span><span id="otdY"></span></h2>
@@ -487,6 +490,10 @@ body.ny #nyCv{display:block}
       <article class="glass card wide wear">
         <h2><span data-n="hWear">Что надеть на улицу</span><span id="wearW"></span></h2>
         <div class="wear-row" id="wear"></div>
+      </article>
+      <article class="glass card wide cal">
+        <h2><span data-n="hCal">Календарь</span><button class="plus" data-add="event" aria-label="+">+</button></h2>
+        <div class="ev" id="ev"></div>
       </article>
     </section>
     </section>
@@ -610,7 +617,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.4";
 const SB_URL = "https://svjlqxkqvvanclemddce.supabase.co";
 const SB_KEY = "sb_publishable_YHELTOfBVYlvmLKTAb99ww_RWTwf6bb";
 const sb = createClient(SB_URL, SB_KEY);
-const APP_VER = "1795680779";
+const APP_VER = "1795681678";
 /* новая версия на сайте — телевизор перезагрузится сам */
 setInterval(async () => { try { const t = await (await fetch("version.txt?" + Date.now(), { cache: "no-store" })).text(); const v = t.trim(); if (v && v !== APP_VER && new URLSearchParams(location.search).get("v") !== v && !document.querySelector("#formOv.open, #camOv.open, #loginOv.open")) location.replace(location.pathname + "?v=" + v); } catch (e) {} }, 5 * 60000);
 /* ---------- Леона: контент по возрасту (месяцы) ---------- */
@@ -706,7 +713,7 @@ const T = {
     vHome: "Главная", vApps: "Приложения", needJs: "Если не открылось: Fully → Settings → Advanced Web Settings → Enable JavaScript Interface", vKids: "Дети", vKitchen: "Кухня", vPhotos: "Фото", vNight: "Ночь",
     wLoading: "Загружаю погоду…", remT: "Сегодня понедельник", remS: "Соберите вещи в садик: сменка, пижама, запасная одежда", done: "Готово",
     phL: "Фраза дня на английском", ask: "Скажите «Луми» или нажмите", listening: "Слушаю… говорите", thinking: "Думаю…", askErr: "Не получилось ответить. Попробуйте ещё раз.", micErr: "Нет доступа к микрофону",
-    hSched: "Режим дня", hTasks: "Няне на сегодня", hCal: "Календарь", hWear: "Что надеть на улицу",
+    hSched: "Режим дня", hTasks: "Напоминалки", hCal: "Календарь", hWear: "Что надеть на улицу",
     logSub: "Дневник для няни", hCook: "Что приготовить сегодня", cookEx: "«Папе ✓» — без глютена и с низким содержанием жиров.",
     hShop: "Список покупок", addPh: "Добавить…", add: "Добавить", usual: "Обычно покупаем · оранжевые — пора купить", magnum: "Собрать корзину на magnum.kz",
     hPhotos: "Фото для экрана", photoHelp: "На экране показываются только выбранные фото.", photoAdd: "С этого устройства", noPhotos: "Фото из альбома «Луми» появятся здесь", every: "Смена каждые", hidePhoto: "Больше не показывать", hiddenOk: "Это фото больше не появится", sec: "сек", photoEvery: "Фото меняются каждые", gPick: "Выбрать в Google Фото", gWait: "Выберите фото в открывшемся окне Google Фото и нажмите «Готово»…",
@@ -730,7 +737,7 @@ const T = {
     vHome: "Home", vApps: "Apps", needJs: "If it didn't open: Fully → Settings → Advanced Web Settings → Enable JavaScript Interface", vKids: "Kids", vKitchen: "Kitchen", vPhotos: "Photos", vNight: "Night",
     wLoading: "Loading weather…", remT: "It's Monday", remS: "Pack the kindergarten bag: indoor shoes, pyjamas, spare clothes", done: "Done",
     phL: "Phrase of the day in Russian", ask: "Say “Lumi” or tap", listening: "Listening… go ahead", thinking: "Thinking…", askErr: "Couldn't answer. Try again.", micErr: "No microphone access",
-    hSched: "Today's routine", hTasks: "Nanny's to-do", hCal: "Calendar", hWear: "What to wear outside",
+    hSched: "Today's routine", hTasks: "Reminders", hCal: "Calendar", hWear: "What to wear outside",
     logSub: "Log for the nanny", hCook: "What to cook today", cookEx: "“Dad ✓” = gluten-free and low in fat.",
     hShop: "Shopping list", addPh: "Add…", add: "Add", usual: "Usually bought · orange = time to buy", magnum: "Build a magnum.kz cart",
     hPhotos: "Photos for the screen", photoHelp: "Only the photos you pick appear on the screen.", photoAdd: "From this device", noPhotos: "Photos from the «Луми» album will appear here", every: "Next every", hidePhoto: "Don't show again", hiddenOk: "This photo won't appear again", sec: "s", photoEvery: "Photos change every", gPick: "Pick from Google Photos", gWait: "Pick photos in the Google Photos window and tap Done…",
@@ -851,6 +858,7 @@ function renderWeather() {
   }
   const list = set.map(([, t], i) => i ? t.charAt(0).toLowerCase() + t.slice(1) : t).join(", ");
   $("wear").innerHTML = `<p class="wear-line">${list}.</p><p class="wear-tip">${tip}</p>`;
+  window.__wearTxt = `${lang === "en" ? "Outside" : "На улицу"}: ${list.charAt(0).toLowerCase() + list.slice(1)}`; if (window.renderHintsNow) renderHintsNow();
 }
 const WEAR = {
   jacket: '<path d="M12 6l6-3 6 3 6 4-3 6-3-2v19H12V14l-3 2-3-6z" fill="#ffb340"/><path d="M18 3v30" stroke="#fff" stroke-width="1.5" opacity=".7"/>',
@@ -1019,12 +1027,13 @@ function renderHints() {
     const tp = bEnt().filter(x => x.kind === "temp" && now - new Date(x.at) < 12 * 36e5).pop();
     if (tp && +tp.value >= 37.5) out.push(["med", `${l.hTempAt} ${tp.value}° ${hm(new Date(tp.at))}`, "baby"]);
   }
+  if (window.__wearTxt && t !== "night") out.unshift(["wear", esc(window.__wearTxt), "home"]);
   const tm = new Date(); tm.setDate(tm.getDate() + 1); const tmS = tm.toDateString();
   S.events.filter(e => new Date(e.starts_at).toDateString() === tmS).slice(0, 1).forEach(e => out.push(["cal", `${l.hTomorrow}: ${esc(e.title)}${e.all_day ? "" : " " + hm(new Date(e.starts_at))}`, "home"]));
   S.kids.forEach(k => { if (!k.birth_date) return; const b = new Date(k.birth_date), n = new Date(); n.setHours(0, 0, 0, 0); let nx = new Date(n.getFullYear(), b.getMonth(), b.getDate()); if (nx < n) nx.setFullYear(nx.getFullYear() + 1); const dd = Math.round((nx - n) / 864e5); if (dd <= 14) out.push(["cake", `${l.hBday}: ${esc(k.name)} ${dd ? `${l.hBdayIn} ${dd} ${l.hDays}` : "— " + l.today + "!"}`, "kids"]); });
   const due = S.usual.filter(u => u.every_days && u.last_bought && (now - new Date(u.last_bought)) / 864e5 >= u.every_days);
   if (due.length) out.push(["cart", `${l.hShopDue}: ${due.slice(0, 3).map(u => esc(u.text)).join(", ")}`, "kitchen"]);
-  const ico = { sun: "#ffb340", moon: "#8fa8ff", baby: "#ff9ec7", med: "#ff6b6b", cal: "#7ad7ff", cake: "#c58bff", cart: "#7be0a4" };
+  const ico = { wear: "#9fd0ff", sun: "#ffb340", moon: "#8fa8ff", baby: "#ff9ec7", med: "#ff6b6b", cal: "#7ad7ff", cake: "#c58bff", cart: "#7be0a4" };
   const max = $("remind").classList.contains("hide") ? 3 : 2;
   $("hints").innerHTML = out.slice(0, max).map(([k, s, v]) => `<button class="hint" data-go="${v}"><i style="background:${ico[k]}"></i><span>${s}</span></button>`).join("");
 }
@@ -1433,6 +1442,7 @@ $("stX").onclick = () => { ST.run++; ST.s = null; stStopAudio(); $("storyOv").cl
   };
   requestAnimationFrame(frame);
 })();
+window.renderHintsNow = renderHints;
 
 
 function spark(a) { if (a.length < 2) return ""; const W = 200, H = 60, mn = Math.min(...a), mx = Math.max(...a); const p = a.map((v, i) => [i * W / (a.length - 1), H - 6 - (v - mn) / ((mx - mn) || 1) * (H - 12)]); return `<svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="none"><polyline points="${p.map(x => x.join(",")).join(" ")}" fill="none" stroke="#ffb340" stroke-width="3" vector-effect="non-scaling-stroke"/></svg>`; }
