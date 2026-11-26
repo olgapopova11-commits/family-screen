@@ -477,6 +477,7 @@ body.ny #nyCv{display:block}
 .cards>article.otd .sq{aspect-ratio:16/10}
 
 .cards>article.otd .sq{aspect-ratio:auto;height:calc(var(--vh,1vh)*34)}
+.cards>article.otd .sq{height:calc(var(--vh,1vh)*20)!important}
 </style>
 </head>
 <body>
@@ -683,7 +684,7 @@ function createClient() { return { from: B, auth: { getSession: async () => ({ d
 const SB_URL = "https://svjlqxkqvvanclemddce.supabase.co";
 const SB_KEY = "sb_publishable_YHELTOfBVYlvmLKTAb99ww_RWTwf6bb";
 const sb = createClient(SB_URL, SB_KEY);
-const APP_VER = "1795689556";
+const APP_VER = "1795689904";
 /* новая версия на сайте — телевизор перезагрузится сам */
 setInterval(async () => { try { const t = await (await fetch("version.txt?" + Date.now(), { cache: "no-store" })).text(); const v = t.trim(); if (v && v !== APP_VER && new URLSearchParams(location.search).get("v") !== v && !document.querySelector("#formOv.open, #camOv.open, #loginOv.open")) location.replace(location.pathname + "?v=" + v); } catch (e) {} }, 5 * 60000);
 /* ---------- Леона: контент по возрасту (месяцы) ---------- */
@@ -1998,7 +1999,7 @@ $("signupBtn").addEventListener("click", async () => {
 function isTV() { const ua = navigator.userAgent; return !!window.fully || /CrOS/.test(ua) || /Android/.test(ua) && (navigator.maxTouchPoints === 0 || /\bwv\b|TV|AFT|MIBOX|BRAVIA/i.test(ua) || !/Mobile/.test(ua)) || /GoogleTV|SmartTV/i.test(ua) || matchMedia("(pointer:none)").matches; }
 function fitTV() {
   const w = innerWidth, h = innerHeight, ua = navigator.userAgent, tv = isTV();
-  const z = /CrOS/.test(ua) && w > h ? w / 1180 : tv && w < 1500 && w > h ? w / 1340 : 1;
+  const z = /CrOS/.test(ua) && w > h ? w / 1340 : tv && w < 1500 && w > h ? w / 1340 : 1;
   document.documentElement.style.zoom = z;
   document.documentElement.style.setProperty("--vh", (h / z / 100) + "px");
 }
