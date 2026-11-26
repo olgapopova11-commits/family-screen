@@ -392,6 +392,13 @@ body[data-tod=night][data-wx=fog] .wx,body[data-tod=evening][data-wx=fog] .wx{ba
 
 .bd-x{display:none}
 body.bd-on #v-home{visibility:hidden}
+
+.wear-row{display:block}.wear-line{font-size:17px;line-height:1.4;margin:0}.home .wear-tip{margin-top:4px;font-size:14px}
+
+.otd-ph{position:relative;height:calc(var(--vh,1vh)*26);border-radius:16px;overflow:hidden;background:rgba(0,0,0,.2)}
+.otd-ph img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;opacity:0;transition:opacity 1.2s}
+.otd-ph img.on{opacity:1}
+#otdY{font-weight:500;opacity:.8}
 </style>
 </head>
 <body>
@@ -428,6 +435,10 @@ body.bd-on #v-home{visibility:hidden}
       <article class="glass card">
         <h2><span data-n="hCal">Календарь</span><button class="plus" data-add="event" aria-label="+">+</button></h2>
         <div class="ev" id="ev"></div>
+      </article>
+      <article class="glass card wide otd hide" id="otd">
+        <h2><span id="otdT">В этот день</span><span id="otdY"></span></h2>
+        <div class="otd-ph" id="otdPh"></div>
       </article>
       <article class="glass card wide wear">
         <h2><span data-n="hWear">Что надеть на улицу</span><span id="wearW"></span></h2>
@@ -581,7 +592,7 @@ function createClient() { return { from: B, auth: { getSession: async () => ({ d
 const SB_URL = "https://svjlqxkqvvanclemddce.supabase.co";
 const SB_KEY = "sb_publishable_YHELTOfBVYlvmLKTAb99ww_RWTwf6bb";
 const sb = createClient(SB_URL, SB_KEY);
-const APP_VER = "1795676983";
+const APP_VER = "1795678046";
 /* новая версия на сайте — телевизор перезагрузится сам */
 setInterval(async () => { try { const t = await (await fetch("version.txt?" + Date.now(), { cache: "no-store" })).text(); const v = t.trim(); if (v && v !== APP_VER && new URLSearchParams(location.search).get("v") !== v && !document.querySelector("#formOv.open, #camOv.open, #loginOv.open")) location.replace(location.pathname + "?v=" + v); } catch (e) {} }, 5 * 60000);
 /* ---------- Леона: контент по возрасту (месяцы) ---------- */
@@ -820,7 +831,8 @@ function renderWeather() {
     else if (feel <= 10) { set = [["jacket", "Light jacket"], ["hat", "Thin hat"], ["mitt", "Gloves"], ["scarf", "Snood"], ["boots", wet ? "Wellies" : "Boots"]]; tip = "No snowsuit needed."; }
     else { set = [["jacket", "Windbreaker"], ["hat", "Cap"], ["boots", wet ? "Wellies" : "Trainers"]]; tip = "Warm."; }
   }
-  $("wear").innerHTML = set.map(([k, t]) => `<div>${`<svg viewBox="0 0 36 36">${WEAR[k]}</svg>`}${t}</div>`).join("") + `<p class="wear-tip">${tip}</p>`;
+  const list = set.map(([, t], i) => i ? t.charAt(0).toLowerCase() + t.slice(1) : t).join(", ");
+  $("wear").innerHTML = `<p class="wear-line">${list}.</p><p class="wear-tip">${tip}</p>`;
 }
 const WEAR = {
   jacket: '<path d="M12 6l6-3 6 3 6 4-3 6-3-2v19H12V14l-3 2-3-6z" fill="#ffb340"/><path d="M18 3v30" stroke="#fff" stroke-width="1.5" opacity=".7"/>',
@@ -1224,6 +1236,26 @@ $("bdNo").onclick = () => { if (!BD.cur) return; const n = bdNot(); n[BD.cur.p |
 setTimeout(bdayCheck, 2500); setInterval(bdayCheck, 20000);
 document.getElementById("nav").addEventListener("click", () => setTimeout(bdayCheck, 50));
 
+/* ---------- «В этот день»: фото этого же дня в прошлые годы ---------- */
+const OTD = { list: [], i: 0, t: null };
+function onThisDay() {
+  const now = new Date(), pool = window.__memPool || [], dayMs = 86400000;
+  const pick = pool.filter(x => { const d = new Date(x.ms); if (d.getFullYear() >= now.getFullYear()) return false; const same = new Date(now.getFullYear(), d.getMonth(), d.getDate()); return Math.abs(same - new Date(now.getFullYear(), now.getMonth(), now.getDate())) <= dayMs; });
+  // одно фото на день, сначала самые давние
+  const seenDay = new Set(); OTD.list = shuffle(pick).filter(x => { const k = new Date(x.ms).toDateString(); if (seenDay.has(k) && pick.length > 6) return false; seenDay.add(k); return true; }).sort((a, b) => a.ms - b.ms);
+  $("otd").classList.toggle("hide", !OTD.list.length);
+  $("otdT").textContent = lang === "en" ? "On this day" : "В этот день";
+  clearInterval(OTD.t); OTD.i = 0; if (!OTD.list.length) return;
+  otdShow(); OTD.t = setInterval(otdShow, 9000);
+}
+function otdShow() {
+  const it = OTD.list[OTD.i++ % OTD.list.length], box = $("otdPh"), y = new Date(it.ms).getFullYear(), ago = new Date().getFullYear() - y;
+  const im = new Image(); im.onload = () => { [...box.querySelectorAll("img")].forEach(o => { o.classList.remove("on"); setTimeout(() => o.remove(), 1300); }); box.appendChild(im); requestAnimationFrame(() => im.classList.add("on")); };
+  im.src = mediaUrl(it, 1000);
+  $("otdY").textContent = lang === "en" ? `${ago} year${ago > 1 ? "s" : ""} ago · ${y}` : `${ago} ${ago === 1 ? "год" : ago < 5 ? "года" : "лет"} назад · ${y}`;
+}
+window.onThisDay = onThisDay;
+
 
 function spark(a) { if (a.length < 2) return ""; const W = 200, H = 60, mn = Math.min(...a), mx = Math.max(...a); const p = a.map((v, i) => [i * W / (a.length - 1), H - 6 - (v - mn) / ((mx - mn) || 1) * (H - 12)]); return `<svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="none"><polyline points="${p.map(x => x.join(",")).join(" ")}" fill="none" stroke="#ffb340" stroke-width="3" vector-effect="non-scaling-stroke"/></svg>`; }
 function renderGrowth() {
@@ -1333,6 +1365,8 @@ async function loadPhotoUrls() {
     for (let i = 0; i < man.length; i += 300) { const part = man.slice(i, i + 300); const { data } = await sb.storage.from("photos").createSignedUrls(part.map(m => m.p), 60 * 60 * 24); (data || []).forEach((x, k) => x.signedUrl && fam.push({ u: x.signedUrl, path: part[k].p, own: true, v: false, w: part[k].w, h: part[k].h, t: part[k].t })); }
   } catch (e) {}
   own = own.concat(fam);
+  window.__memPool = [...fam.map(x => ({ ...x, ms: x.t * 1000 })), ...(S.album || []).filter(x => !x.v && x.t).map(x => ({ ...x, ms: x.t }))];
+  if (window.onThisDay) onThisDay();
   try { S.hidden = new Set((await q(sb.from("hidden_media").select("u"))).map(x => x.u)); } catch (e) { S.hidden = S.hidden || new Set(); }
   const first = !SLIDES.length;
   SLIDES = buildSlides([...own, ...(S.album || [])].filter(it => !S.hidden.has(it.own ? it.path : it.u)));
