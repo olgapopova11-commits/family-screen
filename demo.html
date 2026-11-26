@@ -410,6 +410,21 @@ body.bd-on #v-home{visibility:hidden}
 #gmScore{font:700 44px Inter,sans-serif;color:#fff;text-shadow:0 3px 14px rgba(0,0,0,.6)}
 #gmX{border:0;border-radius:999px;background:rgba(255,255,255,.3);color:#fff;font:600 22px Inter,sans-serif;width:56px;height:56px;cursor:pointer}
 .gm-msg{position:absolute;left:0;right:0;top:40%;text-align:center;font:800 calc(var(--vh,1vh)*11) Inter,sans-serif;color:#fff;text-shadow:0 6px 30px rgba(0,0,0,.7);z-index:2;transition:transform .3s}
+
+.nstory{font-size:20px!important;padding:14px 26px!important}
+#storyOv{position:fixed;inset:0;z-index:80;background:#0b1026;display:none;color:#fff}
+#storyOv.on{display:block}
+.st-img{position:absolute;inset:0 0 28% 0;background:radial-gradient(circle at 50% 40%,#2a3570,#0b1026);display:flex;align-items:center;justify-content:center}
+.st-img img{width:100%;height:100%;object-fit:cover;opacity:0;transition:opacity 1.5s}
+.st-img img.on{opacity:1}
+.st-img .ld{font-size:60px;animation:stp 1.6s ease-in-out infinite}
+@keyframes stp{50%{transform:scale(1.2);opacity:.6}}
+.st-txt{position:absolute;left:6%;right:6%;bottom:6%;height:20%;display:flex;flex-direction:column;justify-content:center}
+.st-txt h3{margin:0 0 8px;font:600 calc(var(--vh,1vh)*3) Inter,sans-serif;opacity:.7}
+.st-txt p{margin:0;font:500 calc(var(--vh,1vh)*4.2)/1.35 Inter,sans-serif}
+.st-nav{position:absolute;top:18px;right:18px;display:flex;gap:10px;align-items:center}
+.st-nav button{border:0;border-radius:999px;background:rgba(255,255,255,.2);color:#fff;font:600 24px Inter,sans-serif;width:56px;height:56px;cursor:pointer}
+.st-nav span{font:500 18px Inter,sans-serif;opacity:.7;padding:0 6px}
 </style>
 </head>
 <body>
@@ -520,6 +535,8 @@ body.bd-on #v-home{visibility:hidden}
 
 <nav class="glass nav" id="nav"><button class="on" data-v="home" data-n="vHome">Главная</button><button data-v="kids" data-n="vKids">Дети</button><button data-v="baby" data-n="vBaby">Леона</button><button data-v="kitchen" data-n="vKitchen">Кухня</button><button data-v="apps" data-n="vApps">Приложения</button><button data-v="photos" data-n="vPhotos">Фото</button><button data-v="night" data-n="vNight">Ночь</button></nav>
 <div class="glass bar"><button class="on" data-l="ru">RU</button><button data-l="en">EN</button></div>
+<div id="storyOv"><div class="st-img" id="stImg"></div><div class="st-txt"><h3 id="stTitle"></h3><p id="stP"></p></div>
+  <div class="st-nav"><button id="stPrev">‹</button><span id="stNum"></span><button id="stNext">›</button><button id="stX">✕</button></div></div>
 <div class="toast" id="toast"></div>
 <div class="glass lumisay" id="lumiSay"></div>
 <div class="listen" id="listenOv"><div class="lorb"><i></i></div><div class="ltxt" id="listenTxt">Слушаю…</div></div>
@@ -533,6 +550,7 @@ body.bd-on #v-home{visibility:hidden}
     <div class="nrow" id="nsound"></div>
     <div class="nrow" id="ntimer"></div>
     <div class="nstatus" id="nstatus"></div>
+    <div class="nrow"><button id="nstory" class="nstory">📖 <span id="nstoryT">Сказка на ночь</span></button></div>
     <div class="nrow"><button id="nexit" data-n="nExit">Выйти из ночного режима</button></div>
   </div>
   <div class="wake" data-n="wake">Коснитесь, чтобы включить</div>
@@ -607,7 +625,7 @@ function createClient() { return { from: B, auth: { getSession: async () => ({ d
 const SB_URL = "https://svjlqxkqvvanclemddce.supabase.co";
 const SB_KEY = "sb_publishable_YHELTOfBVYlvmLKTAb99ww_RWTwf6bb";
 const sb = createClient(SB_URL, SB_KEY);
-const APP_VER = "1795678097";
+const APP_VER = "1795678185";
 /* новая версия на сайте — телевизор перезагрузится сам */
 setInterval(async () => { try { const t = await (await fetch("version.txt?" + Date.now(), { cache: "no-store" })).text(); const v = t.trim(); if (v && v !== APP_VER && new URLSearchParams(location.search).get("v") !== v && !document.querySelector("#formOv.open, #camOv.open, #loginOv.open")) location.replace(location.pathname + "?v=" + v); } catch (e) {} }, 5 * 60000);
 /* ---------- Леона: контент по возрасту (месяцы) ---------- */
@@ -1335,6 +1353,55 @@ function beep(f) { try { const ac = GM.ac = GM.ac || new (window.AudioContext ||
 function stopGame() { GM.on = false; cancelAnimationFrame(GM.raf); musicStop(); if (GM.stream) GM.stream.getTracks().forEach(t => t.stop()); GM.stream = null; $("gameOv").classList.remove("on"); $("gmMsg").textContent = ""; }
 document.querySelector(".games").addEventListener("click", e => { const b = e.target.closest("[data-game]"); if (b) startGame(b.dataset.game); });
 $("gmX").onclick = stopGame;
+
+/* ---------- сказка на ночь: героини-дочки, картинки, читает Луми ---------- */
+const ST = { s: null, i: 0, imgs: [], run: 0, src: null };
+async function speakWait(text, lng) {
+  try {
+    const { data, error } = await sb.functions.invoke("tts", { body: { text, lang: lng } });
+    if (error || !data?.audio) throw new Error("tts");
+    const rate = +((data.mime || "").match(/rate=(\d+)/) || [0, 24000])[1];
+    const bin = atob(data.audio), n = bin.length >> 1, pcm = new Float32Array(n);
+    for (let i = 0; i < n; i++) { let v = bin.charCodeAt(2 * i) | (bin.charCodeAt(2 * i + 1) << 8); if (v >= 32768) v -= 65536; pcm[i] = v / 32768; }
+    ttsAC = ttsAC || new (window.AudioContext || window.webkitAudioContext)(); await ttsAC.resume();
+    const buf = ttsAC.createBuffer(1, n, rate); buf.copyToChannel(pcm, 0);
+    const src = ST.src = ttsAC.createBufferSource(); src.buffer = buf; src.connect(ttsAC.destination);
+    await new Promise(r => { src.onended = r; src.start(); });
+  } catch (e) {
+    await new Promise(r => { try { const u = new SpeechSynthesisUtterance(text); u.lang = lng === "en" ? "en-US" : "ru-RU"; u.rate = .9; u.onend = r; u.onerror = r; speechSynthesis.cancel(); speechSynthesis.speak(u); } catch (e2) { r(); } });
+  }
+}
+function stStopAudio() { try { ST.src && ST.src.stop(); } catch (e) {} try { speechSynthesis.cancel(); } catch (e) {} }
+async function storyOpen() {
+  const run = ++ST.run, en = lang === "en"; $("storyOv").classList.add("on");
+  $("stTitle").textContent = ""; $("stP").textContent = en ? "Lumi is thinking up a story…" : "Луми придумывает сказку…"; $("stNum").textContent = "";
+  $("stImg").innerHTML = '<div class="ld">🌙</div>';
+  const { data, error } = await sb.functions.invoke("story", { body: { lang } });
+  if (run !== ST.run) return;
+  if (error || !data?.pages) { $("stP").textContent = en ? "Couldn't get a story, try again" : "Не получилось, попробуйте ещё раз"; return; }
+  ST.s = data; ST.i = 0; ST.imgs = data.pages.map(p => sb.functions.invoke("story", { body: { mode: "img", prompt: p.scene } }).then(r => r.data?.img ? `data:${r.data.mime};base64,${r.data.img}` : null).catch(() => null));
+  storyPlay(run);
+}
+async function storyPlay(run) {
+  while (ST.s && run === ST.run && ST.i < ST.s.pages.length) {
+    const i = ST.i, p = ST.s.pages[i];
+    $("stTitle").textContent = ST.s.title || ""; $("stP").textContent = p.text; $("stNum").textContent = `${i + 1} / ${ST.s.pages.length}`;
+    const box = $("stImg"); box.innerHTML = '<div class="ld">✨</div>';
+    ST.imgs[i].then(u => { if (!u || run !== ST.run || ST.i !== i) return; const im = new Image(); im.onload = () => { box.innerHTML = ""; box.appendChild(im); requestAnimationFrame(() => im.classList.add("on")); }; im.src = u; });
+    await Promise.race([ST.imgs[i], new Promise(r => setTimeout(r, 12000))]);
+    if (run !== ST.run || ST.i !== i) return;
+    await speakWait(p.text, lang);
+    if (run !== ST.run || ST.i !== i) return;
+    await new Promise(r => setTimeout(r, 1800));
+    if (run !== ST.run || ST.i !== i) return;
+    ST.i++;
+  }
+  if (run === ST.run && ST.s) $("stNum").textContent = "🌙";
+}
+function stGo(d) { if (!ST.s) return; stStopAudio(); ST.i = Math.max(0, Math.min(ST.s.pages.length - 1, ST.i + d)); const run = ++ST.run; storyPlay(run); }
+$("nstory").onclick = storyOpen;
+$("stNext").onclick = () => stGo(1); $("stPrev").onclick = () => stGo(-1);
+$("stX").onclick = () => { ST.run++; ST.s = null; stStopAudio(); $("storyOv").classList.remove("on"); };
 
 
 function spark(a) { if (a.length < 2) return ""; const W = 200, H = 60, mn = Math.min(...a), mx = Math.max(...a); const p = a.map((v, i) => [i * W / (a.length - 1), H - 6 - (v - mn) / ((mx - mn) || 1) * (H - 12)]); return `<svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="none"><polyline points="${p.map(x => x.join(",")).join(" ")}" fill="none" stroke="#ffb340" stroke-width="3" vector-effect="non-scaling-stroke"/></svg>`; }
