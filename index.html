@@ -504,6 +504,8 @@ body.phone #nav .rnav{order:-1}
 .home .clock{font-size:clamp(52px,5vw,92px)!important}
 .home .hints .hint:nth-child(n+3){display:none}
 .cards>article.otd .sq{height:calc(var(--vh,1vh)*22)!important}
+/* голосовой помощник и распознавание лиц пока выключены */
+#askBtn,.duo,#camBtn{display:none!important}
 </style>
 </head>
 <body>
@@ -690,7 +692,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.4";
 const SB_URL = "https://svjlqxkqvvanclemddce.supabase.co";
 const SB_KEY = "sb_publishable_YHELTOfBVYlvmLKTAb99ww_RWTwf6bb";
 const sb = createClient(SB_URL, SB_KEY);
-const APP_VER = "1795698112";
+const APP_VER = "1795699384";
 /* новая версия на сайте — телевизор перезагрузится сам */
 setInterval(async () => { try { const t = await (await fetch("version.txt?" + Date.now(), { cache: "no-store" })).text(); const v = t.trim(); if (v && v !== APP_VER && new URLSearchParams(location.search).get("v") !== v && !document.querySelector("#formOv.open, #camOv.open, #loginOv.open")) location.replace(location.pathname + "?v=" + v); } catch (e) {} }, 5 * 60000);
 /* ---------- Леона: контент по возрасту (месяцы) ---------- */
@@ -1195,7 +1197,7 @@ async function recogTick() {
   const cool = best && best.startsWith("a:") ? 4 * 3600000 : 2 * 3600000;
   if (best && bd < .48 && Date.now() - (lastSeen[best] || 0) > cool) { lastSeen[best] = Date.now(); store.set("fs-seen", lastSeen); if (best.startsWith("a:")) greetAdult(best.slice(2)); else { const k = S.kids.find(x => x.id === +best); if (k && k.name !== "Леона") greet(k.id); } }
 }
-async function startRecog() {
+async function startRecog() { if (!store.get("fs-recog", false)) return; // распознавание лиц пока выключено
   if (recogT || !Object.keys(faces()).length) return;
   try { await camOn(); await faLoad(); recogT = setInterval(() => { if (!document.querySelector("#v-home.on, #v-kids.on")) return; recogTick().catch(() => {}); }, 12000); } catch (e) { console.warn("cam", e); }
 }
