@@ -438,6 +438,11 @@ body.ny #skyCv{display:none}
 #nyCv{position:absolute;inset:0;width:100%;height:100%;display:none}
 body.ny #nyCv{display:block}
 #otd.hide{display:none!important}
+/* слушание: маленькая аккуратная плашка внизу вместо большого шара */
+.listen{bottom:28px;display:flex;align-items:center;gap:12px;padding:10px 18px 10px 12px;border-radius:999px;background:rgba(14,18,32,.55);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);border:1px solid rgba(255,255,255,.14)}
+.lorb{width:22px;height:22px;box-shadow:0 0 calc(4px + var(--lv,0)*18px) rgba(255,190,110,.8);transform:scale(calc(1 + var(--lv,0)*.35))}
+.lorb i{display:none}
+.ltxt{font-size:17px;font-weight:500;text-shadow:none}
 </style>
 </head>
 <body>
@@ -605,7 +610,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.4";
 const SB_URL = "https://svjlqxkqvvanclemddce.supabase.co";
 const SB_KEY = "sb_publishable_YHELTOfBVYlvmLKTAb99ww_RWTwf6bb";
 const sb = createClient(SB_URL, SB_KEY);
-const APP_VER = "1795680410";
+const APP_VER = "1795680554";
 /* новая версия на сайте — телевизор перезагрузится сам */
 setInterval(async () => { try { const t = await (await fetch("version.txt?" + Date.now(), { cache: "no-store" })).text(); const v = t.trim(); if (v && v !== APP_VER && new URLSearchParams(location.search).get("v") !== v && !document.querySelector("#formOv.open, #camOv.open, #loginOv.open")) location.replace(location.pathname + "?v=" + v); } catch (e) {} }, 5 * 60000);
 /* ---------- Леона: контент по возрасту (месяцы) ---------- */
@@ -1716,11 +1721,12 @@ async function runActions(list) {
 async function sendAsk(payload) {
   const l = L(); $("askBtn").classList.add("busy"); $("askBtn").querySelector(".t").textContent = l.thinking;
   try {
-    const ctx = { now: new Date().toString(), view: document.querySelector("#nav button.on")?.dataset.v, lang, kids: S.kids.map(k => k.name), apps: APPS.map(a => a[0]) };
+    const ctx = { diag: window.__recDiag ? window.__recDiag() : null, now: new Date().toString(), view: document.querySelector("#nav button.on")?.dataset.v, lang, kids: S.kids.map(k => k.name), apps: APPS.map(a => a[0]) };
     const { data, error } = await sb.functions.invoke("ask", { body: { ...payload, context: ctx } });
     if (error || !data || data.error) throw new Error(error?.message || data?.error || "no answer");
     if (data.lang && data.lang !== lang && ["ru", "en"].includes(data.lang)) { lang = data.lang; store.set("fs-lang", lang); applyLang(); }
     const onTV = isTV();
+    if (window.tvLog) tvLog({ stage: "ask", diag: ctx.diag, heard: data.heard || "" });
     bubble(data.heard, data.reply || "");
     // с телефона: ответ показывается и звучит на телевизоре; на самом телефоне — тихо
     if (!onTV) { try { await sb.from("lumi_say").insert({ heard: data.heard, reply: data.reply, lang: data.lang || lang, src: "phone" }); } catch (e) {} if (!window.matchMedia("(pointer:coarse)").matches) speak(data.reply || "", data.lang || lang); }
@@ -1747,8 +1753,8 @@ $("askBtn").addEventListener("click", async () => {
     rec = new MediaRecorder(live ? dest.stream : st, mime ? { mimeType: mime } : {}); const chunks = [];
     rec.ondataavailable = e => e.data.size && chunks.push(e.data);
     rec.onstop = async () => { st.getTracks().forEach(t => t.stop()); clearInterval(vadT); try { srcN.disconnect(); comp.disconnect(); if (!shared) ac.close(); } catch (e) {} listenUI(false); chime([660, 990]); const blob = new Blob(chunks, { type: rec.mimeType || mime || "audio/webm" }); const m = (rec.mimeType || "audio/webm").split(";")[0]; rec = null; if (blob.size < 2000) { window.lumiWakePause(false); $("askBtn").classList.remove("rec"); $("askBtn").querySelector(".t").textContent = l.ask; return; } await sendAsk({ audio: await b64(blob), mime: m }); };
-    let spoke = false, quietSince = 0, floor = 0, nf = 0; const t0 = Date.now();
-    const vadT = setInterval(() => { an.getByteTimeDomainData(buf); let pk = 0; for (const v of buf) pk = Math.max(pk, Math.abs(v - 128)); listenUI(true, pk * 2);
+    let spoke = false, quietSince = 0, floor = 0, nf = 0, maxPk = 0; const t0 = Date.now(); window.__recDiag = () => ({ live, maxPk, floor, ac: ac.state });
+    const vadT = setInterval(() => { an.getByteTimeDomainData(buf); let pk = 0; for (const v of buf) pk = Math.max(pk, Math.abs(v - 128)); maxPk = Math.max(maxPk, pk); listenUI(true, pk * 2);
       const el = Date.now() - t0; if (el < 700) { floor = Math.max(floor, pk); nf++; return; }
       const thr = Math.min(30, Math.max(8, floor * 2.2));
       if (pk > thr) { spoke = true; quietSince = 0; } else if (spoke && !quietSince) quietSince = Date.now();
