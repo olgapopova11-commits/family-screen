@@ -610,7 +610,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.4";
 const SB_URL = "https://svjlqxkqvvanclemddce.supabase.co";
 const SB_KEY = "sb_publishable_YHELTOfBVYlvmLKTAb99ww_RWTwf6bb";
 const sb = createClient(SB_URL, SB_KEY);
-const APP_VER = "1795680554";
+const APP_VER = "1795680779";
 /* новая версия на сайте — телевизор перезагрузится сам */
 setInterval(async () => { try { const t = await (await fetch("version.txt?" + Date.now(), { cache: "no-store" })).text(); const v = t.trim(); if (v && v !== APP_VER && new URLSearchParams(location.search).get("v") !== v && !document.querySelector("#formOv.open, #camOv.open, #loginOv.open")) location.replace(location.pathname + "?v=" + v); } catch (e) {} }, 5 * 60000);
 /* ---------- Леона: контент по возрасту (месяцы) ---------- */
@@ -1156,7 +1156,7 @@ const VOSK_MODEL = "https://svjlqxkqvvanclemddce.supabase.co/storage/v1/object/p
 let wake = { on: false, busy: false, last: 0 };
 window.lumiWakePause = v => { wake.busy = v; };
 async function startWake() {
-  if (wake.on || store.get("fs-wake", /CrOS/.test(navigator.userAgent)) !== true) return; // микрофон приставки даёт тишину — слушание выключено, чтобы не грузить
+  if (wake.on || store.get("fs-wake", false) !== true) return; // микрофон приставки даёт тишину — слушание выключено, чтобы не грузить
   wake.on = true;
   try {
     if (!window.Vosk) await new Promise((ok, no) => { const sc = document.createElement("script"); sc.src = VOSK_JS; sc.onload = ok; sc.onerror = no; document.head.appendChild(sc); });
@@ -1745,7 +1745,7 @@ $("askBtn").addEventListener("click", async () => {
     // общий «живой» AudioContext (от слушания «Луми»), иначе новый; если звук заблокирован — пишем микрофон напрямую
     const shared = (window.__acs || []).find(a => a.state === "running"); const ac = shared || new AudioContext(); try { await ac.resume(); } catch (e) {}
     const live = ac.state === "running";
-    const srcN = ac.createMediaStreamSource(st), boost = ac.createGain(); boost.gain.value = 5;
+    const srcN = ac.createMediaStreamSource(st), boost = ac.createGain(); boost.gain.value = 2;
     const comp = ac.createDynamicsCompressor(); comp.threshold.value = -24; comp.ratio.value = 6;
     const dest = ac.createMediaStreamDestination(); srcN.connect(boost); boost.connect(comp); comp.connect(dest);
     const an = ac.createAnalyser(); comp.connect(an); const buf = new Uint8Array(an.fftSize);
