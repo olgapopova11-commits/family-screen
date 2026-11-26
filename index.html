@@ -598,7 +598,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.4";
 const SB_URL = "https://svjlqxkqvvanclemddce.supabase.co";
 const SB_KEY = "sb_publishable_YHELTOfBVYlvmLKTAb99ww_RWTwf6bb";
 const sb = createClient(SB_URL, SB_KEY);
-const APP_VER = "1795678932";
+const APP_VER = "1795679097";
 /* новая версия на сайте — телевизор перезагрузится сам */
 setInterval(async () => { try { const t = await (await fetch("version.txt?" + Date.now(), { cache: "no-store" })).text(); const v = t.trim(); if (v && v !== APP_VER && new URLSearchParams(location.search).get("v") !== v && !document.querySelector("#formOv.open, #camOv.open, #loginOv.open")) location.replace(location.pathname + "?v=" + v); } catch (e) {} }, 5 * 60000);
 /* ---------- Леона: контент по возрасту (месяцы) ---------- */
@@ -1252,20 +1252,24 @@ function onThisDay() {
   $("otd").classList.toggle("hide", !OTD.list.length);
   $("otdT").textContent = lang === "en" ? "On this day" : "В этот день";
   clearInterval(OTD.t); OTD.i = 0; if (!OTD.list.length) return;
-  otdShow(); OTD.t = setInterval(otdShow, 9000);
+  otdShow(); OTD.t = setInterval(otdShow, 5000);
 }
 function otdShow() {
+  // слева — год назад, справа — два года назад; в каждом квадрате свои фото по очереди
   const box = $("otdPh"); if (!box.children.length) box.innerHTML = '<div class="sq"></div><div class="sq"></div>';
-  const n = OTD.list.length, sq = [...box.children];
+  const by = {}; OTD.list.forEach(x => { const y = new Date(x.ms).getFullYear(); (by[y] = by[y] || []).push(x); });
+  const years = Object.keys(by).map(Number).sort((a, b) => b - a), sq = [...box.children];
+  let cols = years.slice(0, 2).map(y => by[y]);
+  if (cols.length === 1 && cols[0].length > 1) { const all = cols[0]; cols = [all.filter((_, i) => i % 2 === 0), all.filter((_, i) => i % 2 === 1)]; }
   sq.forEach((cell, k) => {
-    if (n < 2 && k === 1) { cell.style.display = "none"; return; } cell.style.display = "";
-    const it = OTD.list[(OTD.i + k) % n], y = new Date(it.ms).getFullYear();
+    const list = cols[k]; if (!list || !list.length) { cell.style.display = "none"; return; } cell.style.display = "";
+    const it = list[OTD.i % list.length], y = new Date(it.ms).getFullYear();
+    if (cell._u === it.u) return; cell._u = it.u;
     const im = new Image(); im.onload = () => { [...cell.querySelectorAll("img")].forEach(o => { o.classList.remove("on"); setTimeout(() => o.remove(), 1300); }); cell.appendChild(im); requestAnimationFrame(() => im.classList.add("on")); let lb = cell.querySelector("small"); if (!lb) { lb = document.createElement("small"); cell.appendChild(lb); } lb.textContent = y; };
     im.src = mediaUrl(it, 700);
   });
-  OTD.i += Math.min(2, n);
-  const ys = [...new Set(OTD.list.map(x => new Date(x.ms).getFullYear()))].sort();
-  $("otdY").textContent = ys.length ? ys.join(" · ") : "";
+  OTD.i++;
+  $("otdY").textContent = "";
 }
 window.onThisDay = onThisDay;
 
