@@ -490,6 +490,9 @@ body.phone #nav .rnav{order:-1}
 
 .cards{grid-template-areas:"o o" "t c"!important}
 .cards:has(#otd.hide){grid-template-areas:"t c"!important}
+.home .duo .ask{display:none!important}
+.home .duo{display:none!important}
+.cards>article.otd .sq{height:calc(var(--vh,1vh)*30)!important}
 </style>
 </head>
 <body>
@@ -675,7 +678,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.4";
 const SB_URL = "https://svjlqxkqvvanclemddce.supabase.co";
 const SB_KEY = "sb_publishable_YHELTOfBVYlvmLKTAb99ww_RWTwf6bb";
 const sb = createClient(SB_URL, SB_KEY);
-const APP_VER = "1795690038";
+const APP_VER = "1795693294";
 /* новая версия на сайте — телевизор перезагрузится сам */
 setInterval(async () => { try { const t = await (await fetch("version.txt?" + Date.now(), { cache: "no-store" })).text(); const v = t.trim(); if (v && v !== APP_VER && new URLSearchParams(location.search).get("v") !== v && !document.querySelector("#formOv.open, #camOv.open, #loginOv.open")) location.replace(location.pathname + "?v=" + v); } catch (e) {} }, 5 * 60000);
 /* ---------- Леона: контент по возрасту (месяцы) ---------- */
