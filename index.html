@@ -478,6 +478,15 @@ body.ny #nyCv{display:block}
 
 .cards>article.otd .sq{aspect-ratio:auto;height:calc(var(--vh,1vh)*34)}
 .cards>article.otd .sq{height:calc(var(--vh,1vh)*20)!important}
+
+#nav .rnav{display:none}
+body.phone #nav .rnav{display:inline-block}
+.rgrid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}
+.rgrid button{display:grid;justify-items:center;gap:4px;padding:14px 6px;border:0;border-radius:18px;background:rgba(255,255,255,.14);color:#fff;font-size:30px;cursor:pointer}
+.rgrid button b{font:600 14px Inter,sans-serif}
+.rgrid button:active{transform:scale(.95);background:rgba(255,255,255,.28)}
+#rmOk{font-weight:500;opacity:.8}
+body.phone #nav .rnav{order:-1}
 </style>
 </head>
 <body>
@@ -575,6 +584,18 @@ body.ny #nyCv{display:block}
     </article>
   </section>
 
+  <section class="pane view" id="v-remote">
+    <article class="glass card wide remote"><h2><span>Пульт телевизора</span><small id="rmOk"></small></h2>
+      <div class="rgrid">
+        <button data-rc="view:home">🏠<b>Главная</b></button><button data-rc="view:kids">👧<b>Дети</b></button><button data-rc="view:kitchen">🍲<b>Кухня</b></button>
+        <button data-rc="view:photos">🖼️<b>Фото</b></button><button data-rc="view:apps">📺<b>Приложения</b></button><button data-rc="view:night">🌙<b>Ночь</b></button>
+        <button data-rc="story">📖<b>Сказка</b></button><button data-rc="game:freeze">💃<b>Танцы-замри</b></button><button data-rc="game:stars">⭐<b>Лови звёзды</b></button>
+        <button data-rc="draw:0">🐱<b>Котик</b></button><button data-rc="draw:1">⛄<b>Снеговик</b></button><button data-rc="draw:2">🎄<b>Ёлочка</b></button>
+        <button data-rc="draw:3">🐟<b>Рыбка</b></button><button data-rc="draw:4">🏠<b>Домик</b></button><button data-rc="draw:5">☀️<b>Солнышко</b></button>
+        <button data-rc="next">⏭️<b>Дальше</b></button><button data-rc="prev">⏮️<b>Назад</b></button><button data-rc="close">✖️<b>Закрыть</b></button>
+        <button data-rc="app:YouTube Kids">🧸<b>YouTube Kids</b></button><button data-rc="app:Музыка">🎵<b>Музыка</b></button><button data-rc="reload">🔄<b>Обновить экран</b></button>
+      </div></article>
+  </section>
   <section class="pane view" id="v-apps"><div class="bigapps" id="appsBig"></div></section>
 
   <section class="pane view" id="v-photos" style="grid-template-columns:minmax(0,1fr)">
@@ -588,7 +609,7 @@ body.ny #nyCv{display:block}
   <div class="dots" id="dots"></div>
 </div>
 
-<nav class="glass nav" id="nav"><button class="on" data-v="home" data-n="vHome">Главная</button><button data-v="kids" data-n="vKids">Дети</button><button data-v="kitchen" data-n="vKitchen">Кухня</button><button data-v="apps" data-n="vApps">Приложения</button><button data-v="photos" data-n="vPhotos">Фото</button><button data-v="night" data-n="vNight">Ночь</button></nav>
+<nav class="glass nav" id="nav"><button class="on" data-v="home" data-n="vHome">Главная</button><button data-v="kids" data-n="vKids">Дети</button><button data-v="kitchen" data-n="vKitchen">Кухня</button><button data-v="apps" data-n="vApps">Приложения</button><button data-v="photos" data-n="vPhotos">Фото</button><button data-v="night" data-n="vNight">Ночь</button><button data-v="remote" class="rnav">Пульт</button></nav>
 <div class="glass bar"><button class="on" data-l="ru">RU</button><button data-l="en">EN</button></div>
 <div id="storyOv"><div class="st-img" id="stImg"></div><div class="st-txt"><h3 id="stTitle"></h3><p id="stP"></p></div>
   <div class="st-nav"><button id="stPrev">‹</button><span id="stNum"></span><button id="stNext">›</button><button id="stX">✕</button></div></div>
@@ -651,7 +672,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.4";
 const SB_URL = "https://svjlqxkqvvanclemddce.supabase.co";
 const SB_KEY = "sb_publishable_YHELTOfBVYlvmLKTAb99ww_RWTwf6bb";
 const sb = createClient(SB_URL, SB_KEY);
-const APP_VER = "1795689904";
+const APP_VER = "1795689996";
 /* новая версия на сайте — телевизор перезагрузится сам */
 setInterval(async () => { try { const t = await (await fetch("version.txt?" + Date.now(), { cache: "no-store" })).text(); const v = t.trim(); if (v && v !== APP_VER && new URLSearchParams(location.search).get("v") !== v && !document.querySelector("#formOv.open, #camOv.open, #loginOv.open")) location.replace(location.pathname + "?v=" + v); } catch (e) {} }, 5 * 60000);
 /* ---------- Леона: контент по возрасту (месяцы) ---------- */
@@ -1543,6 +1564,28 @@ drawRenderList();
 /* полноэкранный режим на ноутбуке: при первом нажатии любой клавиши или клике */
 if (/CrOS/.test(navigator.userAgent)) { const fs = () => { if (!document.fullscreenElement) document.documentElement.requestFullscreen?.().catch(() => {}); }; addEventListener("keydown", fs, { once: true }); addEventListener("click", fs, { once: true }); }
 
+/* ---------- пульт: телефон отправляет команды, экран в зале выполняет ---------- */
+if (!isTV()) document.body.classList.add("phone");
+window.runRemote = cmd => {
+  const [k, v] = String(cmd).split(/:(.*)/);
+  const closeAll = () => { try { $("stX").click(); } catch (e) {} if (GM.on) stopGame(); $("drawOv").classList.remove("on"); $("nightOv").classList.remove("open"); };
+  if (k === "view") { closeAll(); setView(v); }
+  else if (k === "story") { setView("night"); storyOpen(); }
+  else if (k === "game") { closeAll(); setView("kids"); startGame(v); }
+  else if (k === "draw") { closeAll(); setView("kids"); DR.l = +v; DR.s = 0; $("drawOv").classList.add("on"); drawStep(); }
+  else if (k === "next") { if ($("drawOv").classList.contains("on")) $("drNext").click(); else if ($("storyOv").classList.contains("on")) $("stNext").click(); else window.__nextSlide?.(); }
+  else if (k === "prev") { if ($("drawOv").classList.contains("on")) $("drPrev").click(); else if ($("storyOv").classList.contains("on")) $("stPrev").click(); }
+  else if (k === "close") { closeAll(); setView("home"); }
+  else if (k === "app") { const i = APPS.findIndex(x => x[0] === v); if (i >= 0) document.querySelector(`#apps .app[data-i="${i}"]`)?.click(); }
+  else if (k === "reload") location.reload();
+};
+document.querySelector(".remote").addEventListener("click", async e => {
+  const b = e.target.closest("[data-rc]"); if (!b) return;
+  b.style.background = "rgba(255,179,64,.5)"; setTimeout(() => b.style.background = "", 400);
+  try { await sb.from("lumi_say").insert({ heard: "", reply: b.dataset.rc, lang, src: "remote" }); $("rmOk").textContent = "✓ " + b.querySelector("b").textContent; } catch (er) { $("rmOk").textContent = "Нет связи"; }
+});
+if (!isTV() && matchMedia("(pointer:coarse)").matches) setTimeout(() => setView("remote"), 1800);
+
 
 function spark(a) { if (a.length < 2) return ""; const W = 200, H = 60, mn = Math.min(...a), mx = Math.max(...a); const p = a.map((v, i) => [i * W / (a.length - 1), H - 6 - (v - mn) / ((mx - mn) || 1) * (H - 12)]); return `<svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="none"><polyline points="${p.map(x => x.join(",")).join(" ")}" fill="none" stroke="#ffb340" stroke-width="3" vector-effect="non-scaling-stroke"/></svg>`; }
 function renderGrowth() {
@@ -1677,6 +1720,7 @@ async function hideMedia(it, cell) {
   cell.style.opacity = ".15"; clearTimeout(slideT); slideT = setTimeout(nextSlide, 800);
 }
 function renderPhotoGrid(urls) { $("pgrid").innerHTML = urls.map(u => `<img src="${u}" alt="" loading="lazy">`).join(""); }
+window.__nextSlide = () => nextSlide();
 function nextSlide() {
   clearTimeout(slideT); if (!SLIDES.length) return;
   const layers = [...$("realPhotos").children]; const cur = layers.find(x => x.classList.contains("on")), nxt = layers.find(x => x !== cur);
@@ -1884,7 +1928,7 @@ $("nexit").addEventListener("click", e => { e.stopPropagation(); clearInterval(t
 /* ---------- навигация и язык ---------- */
 function setView(v) {
   if (v === "night") { renderNight(); $("nightOv").classList.add("open"); }
-  else ["home", "kids", "baby", "kitchen", "apps", "photos"].forEach(x => $("v-" + x).classList.toggle("on", x === v));
+  else ["home", "kids", "baby", "kitchen", "apps", "photos", "remote"].forEach(x => $("v-" + x).classList.toggle("on", x === v));
   document.querySelectorAll("#nav button").forEach(b => b.classList.toggle("on", b.dataset.v === v));
 }
 $("nav").addEventListener("click", e => { const b = e.target.closest("button"); if (b) setView(b.dataset.v); });
@@ -1948,7 +1992,7 @@ async function afterLogin(user) {
   if (window.tvLog) tvLog({ stage: "ready", ver: APP_VER, album: (S.album || []).length });
   loadWeather();
   const nh = new Date().getHours(); if (nh >= 21 || nh < 6) setView("night");
-  if (isTV() && sb.channel) sb.channel("lumi-say").on("postgres_changes", { event: "INSERT", schema: "public", table: "lumi_say" }, p => { const r = p.new; if (r.src === "alice") { bubble(r.heard, r.reply || ""); loadAll(); return; } if (r.src === "phone") { if (r.lang && r.lang !== lang) { lang = r.lang; store.set("fs-lang", lang); applyLang(); } bubble(r.heard, r.reply || ""); speak(r.reply || "", r.lang || lang); loadAll(); } }).subscribe();
+  if (isTV() && sb.channel) sb.channel("lumi-say").on("postgres_changes", { event: "INSERT", schema: "public", table: "lumi_say" }, p => { const r = p.new; if (r.src === "remote") { window.runRemote && runRemote(r.reply || ""); return; } if (r.src === "alice") { bubble(r.heard, r.reply || ""); loadAll(); return; } if (r.src === "phone") { if (r.lang && r.lang !== lang) { lang = r.lang; store.set("fs-lang", lang); applyLang(); } bubble(r.heard, r.reply || ""); speak(r.reply || "", r.lang || lang); loadAll(); } }).subscribe();
   if (isTV() || new URLSearchParams(location.search).has("check")) deviceCheck().finally(() => { startRecog(); startWake(); }); else startRecog();
 }
 $("loginF").addEventListener("submit", async e => {
