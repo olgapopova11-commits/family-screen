@@ -493,6 +493,8 @@ body.phone #nav .rnav{order:-1}
 .home .duo .ask{display:none!important}
 .home .duo{display:none!important}
 .cards>article.otd .sq{height:calc(var(--vh,1vh)*30)!important}
+
+.home{grid-template-columns:minmax(0,1fr) minmax(0,var(--rf,0.95fr))!important}
 </style>
 </head>
 <body>
@@ -600,6 +602,7 @@ body.phone #nav .rnav{order:-1}
         <button data-rc="draw:3">🐟<b>Рыбка</b></button><button data-rc="draw:4">🏠<b>Домик</b></button><button data-rc="draw:5">☀️<b>Солнышко</b></button>
         <button data-rc="next">⏭️<b>Дальше</b></button><button data-rc="prev">⏮️<b>Назад</b></button><button data-rc="close">✖️<b>Закрыть</b></button>
         <button data-rc="app:YouTube Kids">🧸<b>YouTube Kids</b></button><button data-rc="app:Музыка">🎵<b>Музыка</b></button><button data-rc="reload">🔄<b>Обновить экран</b></button>
+        <button data-rc="layout:-">⬅️<b>Фото уже</b></button><button data-rc="layout:+">↔️<b>Фото шире</b></button><button data-rc="layout:0">↩️<b>Как было</b></button>
       </div></article>
   </section>
   <section class="pane view" id="v-apps"><div class="bigapps" id="appsBig"></div></section>
@@ -711,7 +714,7 @@ function createClient() { return { from: B, auth: { getSession: async () => ({ d
 const SB_URL = "https://svjlqxkqvvanclemddce.supabase.co";
 const SB_KEY = "sb_publishable_YHELTOfBVYlvmLKTAb99ww_RWTwf6bb";
 const sb = createClient(SB_URL, SB_KEY);
-const APP_VER = "1795693294";
+const APP_VER = "1795693440";
 /* новая версия на сайте — телевизор перезагрузится сам */
 setInterval(async () => { try { const t = await (await fetch("version.txt?" + Date.now(), { cache: "no-store" })).text(); const v = t.trim(); if (v && v !== APP_VER && new URLSearchParams(location.search).get("v") !== v && !document.querySelector("#formOv.open, #camOv.open, #loginOv.open")) location.replace(location.pathname + "?v=" + v); } catch (e) {} }, 5 * 60000);
 /* ---------- Леона: контент по возрасту (месяцы) ---------- */
@@ -1617,6 +1620,7 @@ window.runRemote = cmd => {
   else if (k === "close") { closeAll(); setView("home"); }
   else if (k === "app") { const i = APPS.findIndex(x => x[0] === v); if (i >= 0) document.querySelector(`#apps .app[data-i="${i}"]`)?.click(); }
   else if (k === "reload") location.reload();
+  else if (k === "layout") { let rf = store.get("fs-rf", 0.95); rf = v === "0" ? 0.95 : Math.max(0.6, Math.min(2.2, rf + (v === "+" ? 0.15 : -0.15))); store.set("fs-rf", rf); document.documentElement.style.setProperty("--rf", rf + "fr"); }
 };
 document.querySelector(".remote").addEventListener("click", async e => {
   const b = e.target.closest("[data-rc]"); if (!b) return;
@@ -1624,6 +1628,8 @@ document.querySelector(".remote").addEventListener("click", async e => {
   try { await sb.from("lumi_say").insert({ heard: "", reply: b.dataset.rc, lang, src: "remote" }); $("rmOk").textContent = "✓ " + b.querySelector("b").textContent; } catch (er) { $("rmOk").textContent = "Нет связи"; }
 });
 if (!isTV() && matchMedia("(pointer:coarse)").matches) setTimeout(() => setView("remote"), 1800);
+
+document.documentElement.style.setProperty("--rf", store.get("fs-rf", 0.95) + "fr");
 
 
 function spark(a) { if (a.length < 2) return ""; const W = 200, H = 60, mn = Math.min(...a), mx = Math.max(...a); const p = a.map((v, i) => [i * W / (a.length - 1), H - 6 - (v - mn) / ((mx - mn) || 1) * (H - 12)]); return `<svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="none"><polyline points="${p.map(x => x.join(",")).join(" ")}" fill="none" stroke="#ffb340" stroke-width="3" vector-effect="non-scaling-stroke"/></svg>`; }
