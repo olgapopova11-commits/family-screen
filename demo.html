@@ -723,7 +723,7 @@ function createClient() { return { from: B, auth: { getSession: async () => ({ d
 const SB_URL = "https://svjlqxkqvvanclemddce.supabase.co";
 const SB_KEY = "sb_publishable_YHELTOfBVYlvmLKTAb99ww_RWTwf6bb";
 const sb = createClient(SB_URL, SB_KEY);
-const APP_VER = "1795697670";
+const APP_VER = "1795698112";
 /* новая версия на сайте — телевизор перезагрузится сам */
 setInterval(async () => { try { const t = await (await fetch("version.txt?" + Date.now(), { cache: "no-store" })).text(); const v = t.trim(); if (v && v !== APP_VER && new URLSearchParams(location.search).get("v") !== v && !document.querySelector("#formOv.open, #camOv.open, #loginOv.open")) location.replace(location.pathname + "?v=" + v); } catch (e) {} }, 5 * 60000);
 /* ---------- Леона: контент по возрасту (месяцы) ---------- */
@@ -1376,7 +1376,9 @@ function onThisDay() {
   const now = new Date(), pool = window.__memPool || [], dayMs = 86400000;
   // этот же день ±3 дня в прошлые годы, все фото без отбора
   const pick = pool.filter(x => { const d = new Date(x.ms); if (d.getFullYear() >= now.getFullYear()) return false; const same = new Date(now.getFullYear(), d.getMonth(), d.getDate()); return Math.abs(same - new Date(now.getFullYear(), now.getMonth(), now.getDate())) <= 3 * dayMs; });
-  OTD.list = shuffle(pick);
+  const faceMemo = store.get("fs-hasface", {});
+  OTD.list = shuffle(pick).filter(x => faceMemo[x.path || x.u] !== 0);
+  otdFaceScan();
   $("otd").classList.toggle("hide", !OTD.list.length);
   $("otdT").textContent = lang === "en" ? "On this day" : "В этот день";
   clearInterval(OTD.t); OTD.i = 0; if (!OTD.list.length) return;
@@ -1397,6 +1399,23 @@ function otdShow() {
   $("otdY").textContent = "";
 }
 window.onThisDay = onThisDay;
+// «В этот день»: убираем кадры без людей — проверка лиц прямо на ноутбуке, по одному фото, без спешки
+let otdScanning = false;
+async function otdFaceScan() {
+  if (otdScanning) return; otdScanning = true;
+  try { await faLoad(); } catch (e) { otdScanning = false; return; }
+  const memo = store.get("fs-hasface", {});
+  for (const it of [...OTD.list]) {
+    const k = it.path || it.u; if (memo[k] != null) continue;
+    try { const im = new Image(); im.crossOrigin = "anonymous"; im.src = mediaUrl(it, 640); await im.decode();
+      const d = await fa.detectAllFaces(im, new fa.TinyFaceDetectorOptions({ inputSize: 320, scoreThreshold: .35 }));
+      memo[k] = d.length ? 1 : 0; store.set("fs-hasface", memo);
+      if (!d.length) OTD.list = OTD.list.filter(x => (x.path || x.u) !== k);
+    } catch (e) {}
+    await new Promise(r => setTimeout(r, 1500));
+  }
+  otdScanning = false;
+}
 
 /* ---------- игры с камерой: «Танцы-замри» и «Лови звёзды» ---------- */
 const GM = { on: false, raf: 0, stream: null, ac: null, music: null, prev: null, score: 0, kind: "", phase: "", until: 0, stars: [] };
