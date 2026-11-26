@@ -7,7 +7,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@200;300;400;500;600;700&family=Lobster&display=swap" rel="stylesheet">
 <script>
-(function(){ if(!/Android/.test(navigator.userAgent)) return;
+(function(){ if(!/Android|CrOS/.test(navigator.userAgent)) return;
   var U="https://svjlqxkqvvanclemddce.supabase.co/functions/v1/tv-log";
   window.tvLog=function(o){ try{ o.ua=navigator.userAgent.slice(0,80); o.url=location.href; fetch(U,{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify(o),keepalive:true}); }catch(e){} };
   tvLog({stage:"boot"});
@@ -592,7 +592,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.4";
 const SB_URL = "https://svjlqxkqvvanclemddce.supabase.co";
 const SB_KEY = "sb_publishable_YHELTOfBVYlvmLKTAb99ww_RWTwf6bb";
 const sb = createClient(SB_URL, SB_KEY);
-const APP_VER = "1795678185";
+const APP_VER = "1795678302";
 /* новая версия на сайте — телевизор перезагрузится сам */
 setInterval(async () => { try { const t = await (await fetch("version.txt?" + Date.now(), { cache: "no-store" })).text(); const v = t.trim(); if (v && v !== APP_VER && new URLSearchParams(location.search).get("v") !== v && !document.querySelector("#formOv.open, #camOv.open, #loginOv.open")) location.replace(location.pathname + "?v=" + v); } catch (e) {} }, 5 * 60000);
 /* ---------- Леона: контент по возрасту (месяцы) ---------- */
@@ -1779,7 +1779,7 @@ $("signupBtn").addEventListener("click", async () => {
 });
 
 /* телевизор: браузер приставки видит экран «маленьким» (≈960px) — масштабируем макет под 1600px */
-function isTV() { const ua = navigator.userAgent; return !!window.fully || /Android/.test(ua) && (navigator.maxTouchPoints === 0 || /\bwv\b|TV|AFT|MIBOX|BRAVIA/i.test(ua) || !/Mobile/.test(ua)) || /GoogleTV|SmartTV/i.test(ua) || matchMedia("(pointer:none)").matches; }
+function isTV() { const ua = navigator.userAgent; return !!window.fully || /CrOS/.test(ua) || /Android/.test(ua) && (navigator.maxTouchPoints === 0 || /\bwv\b|TV|AFT|MIBOX|BRAVIA/i.test(ua) || !/Mobile/.test(ua)) || /GoogleTV|SmartTV/i.test(ua) || matchMedia("(pointer:none)").matches; }
 function fitTV() {
   const w = innerWidth, h = innerHeight, ua = navigator.userAgent, tv = isTV();
   const z = tv && w < 1500 && w > h ? w / 1340 : 1;
