@@ -399,6 +399,17 @@ body.bd-on #v-home{visibility:hidden}
 .otd-ph img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;opacity:0;transition:opacity 1.2s}
 .otd-ph img.on{opacity:1}
 #otdY{font-weight:500;opacity:.8}
+
+.gbtns{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+.gbtn{display:flex;align-items:center;gap:14px;padding:18px 20px;border:0;border-radius:20px;background:rgba(255,255,255,.14);color:#fff;font:600 22px Inter,sans-serif;cursor:pointer}
+.gbtn span{font-size:40px}.gbtn:focus{outline:3px solid #fff}
+#gameOv{position:fixed;inset:0;z-index:70;background:#000;display:none}
+#gameOv.on{display:block}
+#gmV,#gmC{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;transform:scaleX(-1)}
+.gm-top{position:absolute;top:20px;left:24px;right:24px;display:flex;justify-content:space-between;align-items:center;z-index:2}
+#gmScore{font:700 44px Inter,sans-serif;color:#fff;text-shadow:0 3px 14px rgba(0,0,0,.6)}
+#gmX{border:0;border-radius:999px;background:rgba(255,255,255,.3);color:#fff;font:600 22px Inter,sans-serif;width:56px;height:56px;cursor:pointer}
+.gm-msg{position:absolute;left:0;right:0;top:40%;text-align:center;font:800 calc(var(--vh,1vh)*11) Inter,sans-serif;color:#fff;text-shadow:0 6px 30px rgba(0,0,0,.7);z-index:2;transition:transform .3s}
 </style>
 </head>
 <body>
@@ -451,6 +462,8 @@ body.bd-on #v-home{visibility:hidden}
 
   <section class="pane kids view" id="v-kids">
     <article class="glass card wide whohere" id="whoHere"></article>
+    <article class="glass card wide games"><h2><span id="gmT">Игры с камерой</span></h2>
+      <div class="gbtns"><button class="gbtn" data-game="freeze"><span>💃</span><b id="gmF">Танцы-замри</b></button><button class="gbtn" data-game="stars"><span>⭐</span><b id="gmS">Лови звёзды</b></button></div></article>
     <article class="glass card" id="rit0"></article>
     <article class="glass card" id="rit1"></article>
     <article class="glass card">
@@ -530,6 +543,8 @@ body.bd-on #v-home{visibility:hidden}
   <div class="bd-ph" id="bdPh"><div class="bd-f"></div><div class="bd-f"></div></div>
   <button class="bd-x" id="bdX">✕</button><button class="bd-no" id="bdNo"></button>
 </div>
+<div id="gameOv"><video id="gmV" autoplay muted playsinline></video><canvas id="gmC"></canvas>
+  <div class="gm-top"><div id="gmScore"></div><button id="gmX">✕</button></div><div class="gm-msg" id="gmMsg"></div></div>
 <div class="ov" id="greetOv" role="dialog" aria-modal="true">
   <div class="glass formp greet" id="greetP"></div>
 </div>
@@ -592,7 +607,7 @@ function createClient() { return { from: B, auth: { getSession: async () => ({ d
 const SB_URL = "https://svjlqxkqvvanclemddce.supabase.co";
 const SB_KEY = "sb_publishable_YHELTOfBVYlvmLKTAb99ww_RWTwf6bb";
 const sb = createClient(SB_URL, SB_KEY);
-const APP_VER = "1795678046";
+const APP_VER = "1795678097";
 /* новая версия на сайте — телевизор перезагрузится сам */
 setInterval(async () => { try { const t = await (await fetch("version.txt?" + Date.now(), { cache: "no-store" })).text(); const v = t.trim(); if (v && v !== APP_VER && new URLSearchParams(location.search).get("v") !== v && !document.querySelector("#formOv.open, #camOv.open, #loginOv.open")) location.replace(location.pathname + "?v=" + v); } catch (e) {} }, 5 * 60000);
 /* ---------- Леона: контент по возрасту (месяцы) ---------- */
@@ -1255,6 +1270,71 @@ function otdShow() {
   $("otdY").textContent = lang === "en" ? `${ago} year${ago > 1 ? "s" : ""} ago · ${y}` : `${ago} ${ago === 1 ? "год" : ago < 5 ? "года" : "лет"} назад · ${y}`;
 }
 window.onThisDay = onThisDay;
+
+/* ---------- игры с камерой: «Танцы-замри» и «Лови звёзды» ---------- */
+const GM = { on: false, raf: 0, stream: null, ac: null, music: null, prev: null, score: 0, kind: "", phase: "", until: 0, stars: [] };
+const gmL = () => lang === "en" ? { dance: "Dance!", freeze: "Freeze!", moved: "Someone moved! 😄", good: "Great freeze! ⭐", go: "Catch the stars!", end: "Well done!" } : { dance: "Танцуем!", freeze: "Замри!", moved: "Кто-то шевельнулся! 😄", good: "Отлично замерли! ⭐", go: "Ловите звёзды руками!", end: "Молодцы!" };
+function gmMsg(t) { const m = $("gmMsg"); m.textContent = t; m.style.transform = "scale(1.15)"; setTimeout(() => m.style.transform = "", 300); }
+function musicStart() {
+  // весёлая мелодия без записей: простые ноты через WebAudio
+  const ac = GM.ac = GM.ac || new (window.AudioContext || window.webkitAudioContext)(); ac.resume();
+  const notes = [0, 4, 7, 12, 7, 4, 2, 5, 9, 12, 9, 5, 0, 4, 7, 11], base = 261.6; let i = 0;
+  const g = ac.createGain(); g.gain.value = .18; g.connect(ac.destination);
+  const tick = () => { const t = ac.currentTime, f = base * Math.pow(2, notes[i % notes.length] / 12);
+    const o = ac.createOscillator(), e = ac.createGain(); o.type = "triangle"; o.frequency.value = f; e.gain.setValueAtTime(.0001, t); e.gain.exponentialRampToValueAtTime(1, t + .02); e.gain.exponentialRampToValueAtTime(.0001, t + .22); o.connect(e); e.connect(g); o.start(t); o.stop(t + .25);
+    if (i % 2 === 0) { const b = ac.createOscillator(), be = ac.createGain(); b.type = "sine"; b.frequency.value = base / 2 * Math.pow(2, notes[(i >> 2 << 2) % notes.length] / 12); be.gain.setValueAtTime(.6, t); be.gain.exponentialRampToValueAtTime(.0001, t + .3); b.connect(be); be.connect(g); b.start(t); b.stop(t + .32); }
+    i++; };
+  musicStop(); GM.music = setInterval(tick, 230);
+}
+function musicStop() { clearInterval(GM.music); GM.music = null; }
+function motionGrid(v, c) {
+  // уменьшенный кадр 64×48 → разница с прошлым кадром по клеткам
+  const W = 64, H = 48; c.width = W; c.height = H; const x = c.getContext("2d", { willReadFrequently: true }); x.drawImage(v, 0, 0, W, H);
+  const d = x.getImageData(0, 0, W, H).data, g = new Uint8Array(W * H);
+  for (let i = 0; i < W * H; i++) g[i] = (d[i * 4] + d[i * 4 + 1] + d[i * 4 + 2]) / 3;
+  const prev = GM.prev; GM.prev = g; if (!prev) return null;
+  const diff = new Uint8Array(W * H); for (let i = 0; i < W * H; i++) diff[i] = Math.abs(g[i] - prev[i]) > 28 ? 1 : 0;
+  return { diff, W, H };
+}
+async function startGame(kind) {
+  const ov = $("gameOv"); GM.kind = kind; GM.score = 0; GM.prev = null; GM.stars = []; ov.classList.add("on"); GM.on = true;
+  try { GM.stream = await navigator.mediaDevices.getUserMedia({ video: { width: 1280, height: 720 }, audio: false }); $("gmV").srcObject = GM.stream; } catch (e) { gmMsg("📷?"); return; }
+  const small = document.createElement("canvas"), cv = $("gmC"), cx = cv.getContext("2d"); let last = 0;
+  if (kind === "freeze") { GM.phase = "dance"; GM.until = performance.now() + 7000 + Math.random() * 6000; musicStart(); gmMsg(gmL().dance); }
+  else { gmMsg(gmL().go); GM.until = performance.now() + 60000; setTimeout(() => gmMsg(""), 2000); }
+  $("gmScore").textContent = kind === "stars" ? "⭐ 0" : "";
+  const loop = t => {
+    if (!GM.on) return; GM.raf = requestAnimationFrame(loop); if (t - last < 66) return; last = t;
+    const W = cv.width = cv.clientWidth, H = cv.height = cv.clientHeight; cx.clearRect(0, 0, W, H);
+    const m = motionGrid($("gmV"), small); if (!m) return;
+    if (kind === "freeze") {
+      const moved = m.diff.reduce((a, b) => a + b, 0) / m.diff.length;
+      if (GM.phase === "dance" && t > GM.until) { GM.phase = "freeze"; musicStop(); gmMsg(gmL().freeze); GM.until = t + 3500; GM.grace = t + 700; GM.bad = 0; }
+      else if (GM.phase === "freeze") {
+        if (t > GM.grace && moved > .04) GM.bad++;
+        if (t > GM.until) { const ok = GM.bad < 4; if (ok) GM.score++; gmMsg(ok ? gmL().good : gmL().moved); $("gmScore").textContent = "⭐ " + GM.score; GM.phase = "dance"; setTimeout(() => { if (GM.on && GM.phase === "dance") { musicStart(); gmMsg(gmL().dance); } }, 1800); GM.until = t + 1800 + 7000 + Math.random() * 7000; }
+      }
+    } else {
+      if (t > GM.until) { gmMsg(gmL().end + " ⭐ " + GM.score); GM.on = false; setTimeout(stopGame, 5000); return; }
+      while (GM.stars.length < 3) GM.stars.push({ x: .1 + Math.random() * .8, y: .15 + Math.random() * .7, r: .07, born: t, pop: 0 });
+      for (const s of GM.stars) {
+        // экран зеркальный: x камеры = 1 - x на экране
+        const cxm = Math.round((1 - s.x) * m.W), cym = Math.round(s.y * m.H), rr = Math.round(s.r * m.W); let n = 0, tot = 0;
+        for (let yy = cym - rr; yy <= cym + rr; yy++) for (let xx = cxm - rr; xx <= cxm + rr; xx++) { if (xx < 0 || yy < 0 || xx >= m.W || yy >= m.H) continue; tot++; n += m.diff[yy * m.W + xx]; }
+        if (!s.pop && t - s.born > 500 && tot && n / tot > .25) { s.pop = t; GM.score++; $("gmScore").textContent = "⭐ " + GM.score; beep(880 + Math.random() * 400); }
+        const age = s.pop ? (t - s.pop) / 400 : 0, R = s.r * W * (1 + age), a = s.pop ? Math.max(0, 1 - age) : 1;
+        drawStar(cx, s.x * W, s.y * H, R, a, (t / 600) % 6.28);
+      }
+      GM.stars = GM.stars.filter(s => !s.pop || t - s.pop < 400);
+    }
+  };
+  GM.raf = requestAnimationFrame(loop);
+}
+function drawStar(c, x, y, R, a, rot) { c.save(); c.globalAlpha = a; c.translate(x, y); c.rotate(rot); c.beginPath(); for (let i = 0; i < 10; i++) { const r = i % 2 ? R * .45 : R, ang = i * Math.PI / 5 - Math.PI / 2; c.lineTo(Math.cos(ang) * r, Math.sin(ang) * r); } c.closePath(); c.fillStyle = "#ffd54a"; c.shadowColor = "#fff3a0"; c.shadowBlur = 30; c.fill(); c.restore(); }
+function beep(f) { try { const ac = GM.ac = GM.ac || new (window.AudioContext || window.webkitAudioContext)(); const o = ac.createOscillator(), e = ac.createGain(), t = ac.currentTime; o.frequency.value = f; e.gain.setValueAtTime(.3, t); e.gain.exponentialRampToValueAtTime(.0001, t + .25); o.connect(e); e.connect(ac.destination); o.start(t); o.stop(t + .26); } catch (e) {} }
+function stopGame() { GM.on = false; cancelAnimationFrame(GM.raf); musicStop(); if (GM.stream) GM.stream.getTracks().forEach(t => t.stop()); GM.stream = null; $("gameOv").classList.remove("on"); $("gmMsg").textContent = ""; }
+document.querySelector(".games").addEventListener("click", e => { const b = e.target.closest("[data-game]"); if (b) startGame(b.dataset.game); });
+$("gmX").onclick = stopGame;
 
 
 function spark(a) { if (a.length < 2) return ""; const W = 200, H = 60, mn = Math.min(...a), mx = Math.max(...a); const p = a.map((v, i) => [i * W / (a.length - 1), H - 6 - (v - mn) / ((mx - mn) || 1) * (H - 12)]); return `<svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="none"><polyline points="${p.map(x => x.join(",")).join(" ")}" fill="none" stroke="#ffb340" stroke-width="3" vector-effect="non-scaling-stroke"/></svg>`; }
