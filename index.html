@@ -425,6 +425,12 @@ body.bd-on #v-home{visibility:hidden}
 .st-nav{position:absolute;top:18px;right:18px;display:flex;gap:10px;align-items:center}
 .st-nav button{border:0;border-radius:999px;background:rgba(255,255,255,.2);color:#fff;font:600 24px Inter,sans-serif;width:56px;height:56px;cursor:pointer}
 .st-nav span{font:500 18px Inter,sans-serif;opacity:.7;padding:0 6px}
+
+.otd-ph{display:grid;grid-template-columns:1fr 1fr;gap:10px;height:auto;background:none;border-radius:0;overflow:visible}
+.otd-ph .sq{position:relative;aspect-ratio:1/1;border-radius:16px;overflow:hidden;background:rgba(0,0,0,.2)}
+.otd-ph .sq img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;opacity:0;transition:opacity 1.2s}
+.otd-ph .sq img.on{opacity:1}
+.otd-ph .sq small{position:absolute;left:8px;bottom:6px;font:600 13px Inter,sans-serif;color:#fff;text-shadow:0 1px 6px rgba(0,0,0,.7);z-index:1}
 </style>
 </head>
 <body>
@@ -592,7 +598,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.4";
 const SB_URL = "https://svjlqxkqvvanclemddce.supabase.co";
 const SB_KEY = "sb_publishable_YHELTOfBVYlvmLKTAb99ww_RWTwf6bb";
 const sb = createClient(SB_URL, SB_KEY);
-const APP_VER = "1795678302";
+const APP_VER = "1795678815";
 /* новая версия на сайте — телевизор перезагрузится сам */
 setInterval(async () => { try { const t = await (await fetch("version.txt?" + Date.now(), { cache: "no-store" })).text(); const v = t.trim(); if (v && v !== APP_VER && new URLSearchParams(location.search).get("v") !== v && !document.querySelector("#formOv.open, #camOv.open, #loginOv.open")) location.replace(location.pathname + "?v=" + v); } catch (e) {} }, 5 * 60000);
 /* ---------- Леона: контент по возрасту (месяцы) ---------- */
@@ -1249,10 +1255,17 @@ function onThisDay() {
   otdShow(); OTD.t = setInterval(otdShow, 9000);
 }
 function otdShow() {
-  const it = OTD.list[OTD.i++ % OTD.list.length], box = $("otdPh"), y = new Date(it.ms).getFullYear(), ago = new Date().getFullYear() - y;
-  const im = new Image(); im.onload = () => { [...box.querySelectorAll("img")].forEach(o => { o.classList.remove("on"); setTimeout(() => o.remove(), 1300); }); box.appendChild(im); requestAnimationFrame(() => im.classList.add("on")); };
-  im.src = mediaUrl(it, 1000);
-  $("otdY").textContent = lang === "en" ? `${ago} year${ago > 1 ? "s" : ""} ago · ${y}` : `${ago} ${ago === 1 ? "год" : ago < 5 ? "года" : "лет"} назад · ${y}`;
+  const box = $("otdPh"); if (!box.children.length) box.innerHTML = '<div class="sq"></div><div class="sq"></div>';
+  const n = OTD.list.length, sq = [...box.children];
+  sq.forEach((cell, k) => {
+    if (n < 2 && k === 1) { cell.style.display = "none"; return; } cell.style.display = "";
+    const it = OTD.list[(OTD.i + k) % n], y = new Date(it.ms).getFullYear();
+    const im = new Image(); im.onload = () => { [...cell.querySelectorAll("img")].forEach(o => { o.classList.remove("on"); setTimeout(() => o.remove(), 1300); }); cell.appendChild(im); requestAnimationFrame(() => im.classList.add("on")); let lb = cell.querySelector("small"); if (!lb) { lb = document.createElement("small"); cell.appendChild(lb); } lb.textContent = y; };
+    im.src = mediaUrl(it, 700);
+  });
+  OTD.i += Math.min(2, n);
+  const ys = [...new Set(OTD.list.map(x => new Date(x.ms).getFullYear()))].sort();
+  $("otdY").textContent = ys.length ? ys.join(" · ") : "";
 }
 window.onThisDay = onThisDay;
 
