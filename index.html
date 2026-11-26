@@ -605,7 +605,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.4";
 const SB_URL = "https://svjlqxkqvvanclemddce.supabase.co";
 const SB_KEY = "sb_publishable_YHELTOfBVYlvmLKTAb99ww_RWTwf6bb";
 const sb = createClient(SB_URL, SB_KEY);
-const APP_VER = "1795679829";
+const APP_VER = "1795680033";
 /* новая версия на сайте — телевизор перезагрузится сам */
 setInterval(async () => { try { const t = await (await fetch("version.txt?" + Date.now(), { cache: "no-store" })).text(); const v = t.trim(); if (v && v !== APP_VER && new URLSearchParams(location.search).get("v") !== v && !document.querySelector("#formOv.open, #camOv.open, #loginOv.open")) location.replace(location.pathname + "?v=" + v); } catch (e) {} }, 5 * 60000);
 /* ---------- Леона: контент по возрасту (месяцы) ---------- */
@@ -1151,7 +1151,7 @@ const VOSK_MODEL = "https://svjlqxkqvvanclemddce.supabase.co/storage/v1/object/p
 let wake = { on: false, busy: false, last: 0 };
 window.lumiWakePause = v => { wake.busy = v; };
 async function startWake() {
-  if (wake.on || store.get("fs-wake", false) !== true) return; // микрофон приставки даёт тишину — слушание выключено, чтобы не грузить
+  if (wake.on || store.get("fs-wake", /CrOS/.test(navigator.userAgent)) !== true) return; // микрофон приставки даёт тишину — слушание выключено, чтобы не грузить
   wake.on = true;
   try {
     if (!window.Vosk) await new Promise((ok, no) => { const sc = document.createElement("script"); sc.src = VOSK_JS; sc.onload = ok; sc.onerror = no; document.head.appendChild(sc); });
@@ -1164,7 +1164,7 @@ async function startWake() {
     recog.on("partialresult", m => hit(m.result.partial));
     const src = ac.createMediaStreamSource(st), proc = ac.createScriptProcessor(4096, 1, 1);
     proc.onaudioprocess = e => { if (wake.busy) return; try { recog.acceptWaveform(e.inputBuffer); } catch (err) {} };
-    src.connect(proc); proc.connect(ac.destination);
+    const g = ac.createGain(); g.gain.value = 4; src.connect(g); g.connect(proc); const mute = ac.createGain(); mute.gain.value = 0; proc.connect(mute); mute.connect(ac.destination);
     $("askBtn").classList.add("wake");
     try { await sb.from("device_status").insert({ info: { stage: "wake-on", ua: navigator.userAgent, rate, ac: ac.state } }); } catch (e) {}
     [20000, 60000, 120000].forEach(ms => setTimeout(async () => { try { await sb.from("device_status").insert({ info: { stage: "wake-state", ua: navigator.userAgent, ac: ac.state, heardAny: wake.heard || 0, texts: wake.texts || [] } }); } catch (e) {} }, ms));
